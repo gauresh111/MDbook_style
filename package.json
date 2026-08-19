@@ -1,0 +1,43 @@
+{
+  "name": "mdbook-style",
+  "version": "0.1.0",
+  "description": "Shared Starlight theme for eYantra mdBook docs sites \u2014 token-driven base plus the Android-docs design layer",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/gauresh111/MDbook_style.git"
+  },
+  "keywords": [
+    "starlight",
+    "astro",
+    "theme",
+    "css",
+    "eysip"
+  ],
+  "license": "MIT",
+  "type": "module",
+  "exports": {
+    ".": {
+      "types": "./starlight.d.ts",
+      "default": "./starlight.js"
+    },
+    "./custom.css": "./custom.css",
+    "./android.css": "./android.css"
+  },
+  "sideEffects": [
+    "*.css"
+  ],
+  "files": [
+    "starlight.js",
+    "starlight.d.ts",
+    "custom.css",
+    "android.css",
+    "README.md",
+    "LICENSE.md"
+  ],
+  "module": "./starlight.js",
+  "types": "./starlight.d.ts",
+  "peerDependencies": {
+    "@astrojs/starlight": ">=0.32.0"
+  },
+  "homepage": "https://github.com/gauresh111/MDbook_style"
+}

@@ -1,0 +1,2147 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:ital,wght@0,300;0,400;0,500;0,600;0,700;1,400&family=Figtree:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&family=Roboto+Mono:wght@400;500;700&display=swap');
+
+/* ══════════════════════════════════════════════════════════════════════
+   THEMING MODEL
+   ──────────────────────────────────────────────────────────────────────
+   Every rule in this file is written once, unscoped, against the `--t-*`
+   role tokens below. The two themes differ only in what those tokens
+   resolve to:
+
+     [data-theme='dark']   Mars / desert palette  (the original cream look)
+     [data-theme='light']  Android Open Source docs palette
+
+   Tokens ending in `-rgb` hold bare `r, g, b` channels so existing
+   alpha tints keep working: rgba(var(--t-line-rgb), 0.20). The alpha
+   rhythm was tuned for warm-on-cream and maps onto Android almost
+   exactly — rgba(60, 64, 67, 0.20) over white lands on #DADCE0, which
+   is the hairline source.android.com actually uses.
+   ══════════════════════════════════════════════════════════════════════ */
+
+/* ── Global tokens ── */
+:root {
+	/* Custom properties resolve at use time, so these may forward-reference the
+	   per-theme `--t-font-*` tokens defined further down. */
+	--sl-font: var(--t-font-body, 'Inter', sans-serif);
+	--sl-font-mono: var(--t-font-mono, 'JetBrains Mono', monospace);
+
+	/* Typography scale — slightly tighter for docs */
+	--sl-text-body:     1rem;
+	--sl-text-body-sm:  0.875rem;
+	--sl-text-code:     0.875rem;
+	--sl-line-height:   1.8;
+
+	/* Wider content area on large screens */
+	--sl-content-width: 52rem;
+}
+
+@media (min-width: 1024px) {
+	:root {
+		--sl-content-width: 62rem;
+	}
+}
+
+/* ── Theme A — "dark": Android Open Source docs, dark appearance ────────
+   Measured off source.android.com with devsite-appearance-cookie=dark.
+   Page #121212 · prose #E8EAED · muted #9AA0A6 · link Blue 300 #8AB4F8
+   raised surfaces #36373A · active nav pill #15305C.                    */
+:root,
+[data-theme='dark'] {
+	/* role tokens — solid */
+	--t-text-strong:   #E8EAED;
+	--t-text:          #E8EAED;
+	--t-text-muted:    #9AA0A6;
+	--t-text-faint:    #80868B;
+	--t-link:          #8AB4F8;
+	--t-accent:        #8AB4F8;
+	--t-accent-strong: #AECBFA;
+	--t-border:        #3C4043;
+	--t-border-strong: #5F6368;
+	--t-raise:         #36373A;
+	--t-active-bg:     #15305C;
+	--t-on-accent:     #202124;
+
+	/* Channels for the alpha tints. On a dark page a hairline is a *light*
+	   colour at low alpha, which inverts the light theme's logic:
+	   rgba(232,234,237,0.20) over #121212 lands on #3C4043 — DevSite's own
+	   dark hairline — so the existing alpha rhythm carries over unchanged. */
+	--t-line-rgb:          232, 234, 237;
+	--t-tint-rgb:          138, 180, 248;
+	--t-accent-rgb:        138, 180, 248;
+	--t-accent-strong-rgb: 174, 203, 250;
+	--t-raise-rgb:         54, 55, 58;
+	--t-sand-rgb:          232, 234, 237;
+	--t-ink-rgb:           18, 18, 18;
+	--t-surface-rgb:       18, 18, 18;
+	--t-surface-2-rgb:     42, 43, 46;
+	--t-surface-3-rgb:     42, 43, 46;
+	--t-body-rgb:          18, 18, 18;
+
+	/* Same pairing as the light theme — see the note there about Google Sans. */
+	--t-font-heading: 'Google Sans', 'Figtree', 'Inter', sans-serif;
+	--t-font-body:    'Google Sans Text', 'Inter', sans-serif;
+	--t-font-mono:    'Roboto Mono', monospace;
+
+	/* Dark-appearance code blocks sit *lighter* than the page, not darker. */
+	--t-code-bg:     #36373A;
+	--t-code-text:   #F1F3F4;
+	--t-code-shadow: none;
+	--t-blur:        none;
+
+	/* legacy aliases kept so nothing downstream breaks */
+	--brand-brown: var(--t-border-strong);
+	--brand-tan:   var(--t-accent);
+	--brand-sand:  var(--t-border);
+	--brand-cream: var(--t-raise);
+
+	/* Starlight semantic tokens */
+	--sl-color-white:  #E8EAED;
+	--sl-color-black:  #121212;
+	--sl-color-text:   #E8EAED;
+	--sl-color-bg:     #121212;
+	--sl-color-bg-nav: #121212;
+	--sl-color-bg-sidebar: #121212;
+
+	--sl-color-accent:      #8AB4F8;
+	--sl-color-accent-high: #AECBFA;
+	--sl-color-accent-low:  #15305C;
+	--sl-color-text-accent: #8AB4F8;
+
+	--sl-color-hairline-shade: rgba(232, 234, 237, 0.06);
+	--sl-color-hairline:       rgba(232, 234, 237, 0.12);
+	--sl-color-hairline-light: rgba(232, 234, 237, 0.20);
+	--sl-color-bg-inline-code: #36373A;
+
+	--sl-color-gray-1: #E8EAED;
+	--sl-color-gray-2: #C4C7C5;
+	--sl-color-gray-3: #9AA0A6;
+	--sl-color-gray-4: #80868B;
+	--sl-color-gray-5: #5F6368;
+	--sl-color-gray-6: #3C4043;
+	--sl-color-gray-7: #2A2B2E;
+}
+
+/* ── Theme B — "light": Android Open Source docs palette ────────────────
+   Measured off source.android.com/docs/setup/start (DevSite, light).
+   Greys are Google's ramp: 900 #202124 · 800 #3C4043 · 700 #5F6368
+   300 #DADCE0 · 100 #F1F3F4 · 50 #F8F9FA. Links are Blue 900 #174EA6,
+   the active nav pill is Blue 100 #D2E3FC, and code blocks stay dark
+   (#202124) exactly as they do on the real site.                        */
+[data-theme='light'] {
+	--t-text-strong:   #202124;
+	--t-text:          #3C4043;
+	--t-text-muted:    #5F6368;
+	--t-text-faint:    #80868B;
+	--t-link:          #174EA6;
+	--t-accent:        #1A73E8;
+	--t-accent-strong: #174EA6;
+	/* Grey 500 / Grey 600, two steps down from DevSite's own #DADCE0 / #BDC1C6.
+	   The Google values are authored for a calibrated display at 100% scaling;
+	   on everything else a 1px #DADCE0 hairline (1.37:1 against white) either
+	   dithers away or vanishes into the page, and the panels it is supposed to
+	   bound read as floating. #9AA0A6 lands at 2.6:1 — still a hairline, not a
+	   rule — and the "strong" step keeps a full grade of separation above it
+	   for the edges that carry weight: blockquote bars, table outlines, hovers. */
+	--t-border:        #9AA0A6;
+	--t-border-strong: #80868B;
+	--t-raise:         #F1F3F4;
+	--t-active-bg:     #D2E3FC;
+	--t-on-accent:     #FFFFFF;
+
+	/* Channels chosen so the existing alpha rhythm lands on Google's ramp:
+	   rgba(60,64,67,.20) over white ≈ #DADCE0 (the DevSite hairline),
+	   rgba(26,115,232,.10) over white ≈ #E8F0FE (the DevSite hover tint). */
+	--t-line-rgb:          60, 64, 67;
+	--t-tint-rgb:          26, 115, 232;
+	--t-accent-rgb:        26, 115, 232;
+	--t-accent-strong-rgb: 23, 78, 166;
+	--t-raise-rgb:         241, 243, 244;
+	--t-sand-rgb:          60, 64, 67;
+	--t-ink-rgb:           32, 33, 36;
+	--t-surface-rgb:       255, 255, 255;
+	--t-surface-2-rgb:     255, 255, 255;
+	--t-surface-3-rgb:     248, 249, 250;
+	--t-body-rgb:          255, 255, 255;
+
+	/* Google Sans is proprietary and only served to Google-owned domains, so
+	   it is requested first (anyone who has it locally gets the real thing)
+	   and Figtree stands in — the closest free geometric-humanist match.
+	   Roboto Mono is the genuine article and is free. */
+	--t-font-heading: 'Google Sans', 'Figtree', 'Inter', sans-serif;
+	--t-font-body:    'Google Sans Text', 'Inter', sans-serif;
+	--t-font-mono:    'Roboto Mono', monospace;
+
+	--t-code-bg:     #202124;
+	--t-code-text:   #F1F3F4;
+	/* DevSite is flat — separation is hairlines, never shadows. */
+	--t-code-shadow: none;
+	--t-blur:        none;
+
+	/* Starlight's own semantic tokens.
+	   These must be restated here, not just inherited: the cream theme runs as
+	   `data-theme='dark'` while *looking* light, so it deliberately inverts
+	   Starlight's dark-first naming (--sl-color-white is a near-black there).
+	   Left to inherit, a primary link button renders white-on-#F1F3F4. */
+	--sl-color-white:  #202124;   /* highest-contrast foreground */
+	--sl-color-black:  #FFFFFF;   /* page background */
+	--sl-color-text:   #3C4043;
+	--sl-color-bg:     #FFFFFF;
+	--sl-color-bg-nav: #FFFFFF;
+	--sl-color-bg-sidebar: #FFFFFF;
+
+	--sl-color-accent:      #1A73E8;
+	--sl-color-accent-high: #174EA6;
+	--sl-color-accent-low:  #E8F0FE;
+	--sl-color-text-accent: #1A73E8;
+
+	--sl-color-gray-1: #202124;
+	--sl-color-gray-2: #3C4043;
+	--sl-color-gray-3: #5F6368;
+	--sl-color-gray-4: #80868B;
+	--sl-color-gray-5: #9AA0A6;
+	--sl-color-gray-6: #BDC1C6;
+	--sl-color-gray-7: #F1F3F4;
+
+	/* Starlight draws its own dividers from these — the panel rule under the
+	   page header is one — so they are pinned to the same two greys rather
+	   than left on the old alphas, which put pale lines across darker ones. */
+	--sl-color-hairline-shade: rgba(60, 64, 67, 0.26);
+	--sl-color-hairline:       var(--t-border);
+	--sl-color-hairline-light: var(--t-border-strong);
+	--sl-color-bg-inline-code: #F8F9FA;
+}
+
+/* ── Body background ── */
+:root body {
+	/* background-color: rgb(245, 238, 230); */
+	background-color: rgba(var(--t-body-rgb), 1);
+	background-image: none;
+	background-attachment: fixed;
+	min-height: 100vh;
+	position: relative;
+	overflow-x: hidden;
+}
+
+/* ── Animated background orbs — disabled on cream background ── */
+:root body::before {
+	display: none;
+}
+
+@keyframes orbFloat {
+	0%   { transform: translate(0px,    0px)   scale(1);    }
+	25%  { transform: translate(22px,  -18px)  scale(1.05); }
+	50%  { transform: translate(-10px,  24px)  scale(0.97); }
+	75%  { transform: translate(16px,   10px)  scale(1.03); }
+	100% { transform: translate(-18px, -12px)  scale(1.02); }
+}
+
+/* ── Header / nav bar ── */
+:root header.header {
+	background: rgba(var(--t-surface-rgb), 0.92) !important;
+	backdrop-filter: blur(16px);
+	border-bottom: 1px solid rgba(var(--t-line-rgb), 0.18) !important;
+}
+
+:root header.header a,
+:root header.header .site-title,
+:root header.header button {
+	color: var(--t-text-strong) !important;
+}
+
+/* ── Sidebar panel — matches body background ── */
+:root .sidebar-pane {
+	background: rgba(var(--t-surface-rgb), 1) !important;
+	backdrop-filter: blur(20px);
+	border-inline-end: 1px solid rgba(var(--t-line-rgb), 0.20) !important;
+}
+
+/* ── Mobile hamburger button — cream/warm theme ── */
+:root starlight-menu-button button {
+	background-color: rgba(var(--t-raise-rgb), 0.95) !important;
+	color: var(--t-text-strong) !important;
+	border: 1px solid rgba(var(--t-line-rgb), 0.30) !important;
+	box-shadow: 0 2px 10px rgba(var(--t-line-rgb), 0.22) !important;
+}
+
+:root starlight-menu-button[aria-expanded='true'] button {
+	background-color: rgba(var(--t-tint-rgb), 0.50) !important;
+	color: var(--t-text-strong) !important;
+	box-shadow: none !important;
+	border-color: rgba(var(--t-line-rgb), 0.48) !important;
+}
+
+/* ── Mobile sidebar panel (< 50rem) — full-screen overlay ── */
+@media (max-width: 50rem) {
+	:root .sidebar-pane {
+		background: rgba(var(--t-surface-rgb), 1) !important;
+		border-inline-end: none !important;
+		border-top: 1px solid rgba(var(--t-line-rgb), 0.18) !important;
+		box-shadow: 0 8px 24px rgba(var(--t-line-rgb), 0.12);
+	}
+
+	:root #starlight__sidebar {
+		padding-inline: 0.85rem !important;
+	}
+
+	:root #starlight__sidebar ul {
+		padding-inline-start: 0 !important;
+	}
+}
+
+/* Inner sidebar nav container — real top/bottom air. Horizontal inset lives
+   on #starlight__sidebar itself so every row's pill has equal breathing
+   room on both edges, not just the hover row. */
+:root .sidebar-pane .sidebar-content {
+	padding: 1rem 0 !important;
+}
+
+@media (min-width: 50rem) {
+	:root #starlight__sidebar {
+		padding-inline: 0.85rem !important;
+	}
+
+	:root #starlight__sidebar ul {
+		padding-inline-start: 0 !important;
+	}
+}
+
+/* ── Right sidebar (On this page TOC) ── */
+@media (min-width: 1200px) {
+	:root .right-sidebar {
+		border-inline-start: 1px solid rgba(var(--t-line-rgb), 0.28) !important;
+		background: rgba(var(--t-surface-rgb), 0.65);
+		backdrop-filter: blur(8px);
+	}
+}
+
+:root .right-sidebar-panel {
+	padding: 1.25rem 1.25rem 1.25rem 1.5rem !important;
+}
+
+/* "On this page" heading */
+:root .right-sidebar-panel h2 {
+	color: var(--t-text-strong) !important;
+	font-size: 0.78rem !important;
+	font-weight: 700 !important;
+	letter-spacing: 0.10em;
+	text-transform: uppercase;
+	margin-bottom: 0.9rem !important;
+	padding-bottom: 0.6rem;
+	border-bottom: 1px solid rgba(var(--t-line-rgb), 0.22);
+	position: relative;
+}
+
+:root .right-sidebar-panel h2::before {
+	content: '';
+	display: inline-block;
+	width: 6px;
+	height: 6px;
+	border-radius: 50%;
+	background: var(--t-accent);
+	margin-right: 0.55rem;
+	vertical-align: middle;
+	box-shadow: 0 0 0 2px rgba(var(--t-tint-rgb), 0.25);
+}
+
+/* TOC links — default */
+:root .right-sidebar-panel a {
+	color: var(--t-text-muted) !important;
+	font-size: 0.82rem !important;
+	font-weight: 400;
+	padding: 0.35rem 0.6rem !important;
+	border-radius: 6px;
+	border-inline-start: 2px solid transparent;
+	margin-inline-start: -0.6rem;
+	transition: color 0.15s ease, background 0.15s ease, border-color 0.15s ease, padding-inline-start 0.15s ease;
+	line-height: 1.45;
+}
+
+/* TOC links — hover */
+:root .right-sidebar-panel a:hover {
+	color: var(--t-text-strong) !important;
+	background: rgba(var(--t-tint-rgb), 0.16);
+	border-inline-start-color: rgba(var(--t-line-rgb), 0.50);
+}
+
+/* TOC links — active (currently in view) */
+:root .right-sidebar-panel a[aria-current='true'] {
+	color: var(--t-text-strong) !important;
+	font-weight: 600;
+	background: var(--t-active-bg);
+	border-inline-start-color: var(--t-border-strong);
+	padding-inline-start: calc(0.6rem - 0px) !important;
+}
+
+/* Nested TOC items (h3 under h2) — indent visually */
+:root .right-sidebar-panel ul ul a {
+	font-size: 0.78rem !important;
+	color: var(--t-link) !important;
+	padding-inline-start: 1.3rem !important;
+}
+
+:root .right-sidebar-panel ul ul a:hover {
+	color: var(--t-text-strong) !important;
+}
+
+:root .right-sidebar-panel ul ul a[aria-current='true'] {
+	color: var(--t-text-strong) !important;
+}
+
+/* TOC list reset */
+:root .right-sidebar-panel ul {
+	list-style: none;
+	padding: 0;
+	margin: 0;
+	display: flex;
+	flex-direction: column;
+	gap: 0.1rem;
+}
+
+/* Custom scrollbar for right sidebar */
+:root .right-sidebar::-webkit-scrollbar {
+	width: 4px;
+}
+:root .right-sidebar::-webkit-scrollbar-thumb {
+	background: rgba(var(--t-line-rgb), 0.30);
+	border-radius: 4px;
+}
+:root .right-sidebar::-webkit-scrollbar-thumb:hover {
+	background: rgba(var(--t-line-rgb), 0.50);
+}
+
+/* ── Mobile "On this page" TOC (small screens) ── */
+:root mobile-starlight-toc nav {
+	background-color: rgba(var(--t-surface-2-rgb), 1) !important;
+	backdrop-filter: blur(12px);
+	border-top: none !important;
+	border-bottom: 2px solid rgba(var(--t-line-rgb), 0.25) !important;
+	box-shadow: 0 2px 8px rgba(var(--t-line-rgb), 0.10);
+	z-index: 10000 !important;
+	overflow: visible !important;
+}
+
+/* "On this page" pill button */
+:root mobile-starlight-toc .toggle {
+	background-color: rgba(var(--t-raise-rgb), 0.70) !important;
+	border: 1px solid rgba(var(--t-line-rgb), 0.35) !important;
+	color: var(--t-text-strong) !important;
+	font-weight: 600;
+	border-radius: 8px !important;
+	transition: border-color 0.15s ease, background-color 0.15s ease, color 0.15s ease;
+}
+
+:root mobile-starlight-toc details[open] .toggle,
+:root mobile-starlight-toc details .toggle:hover {
+	background-color: rgba(var(--t-raise-rgb), 0.95) !important;
+	border-color: var(--t-accent) !important;
+	color: var(--t-accent-strong) !important;
+}
+
+:root mobile-starlight-toc .toggle .caret {
+	color: var(--t-accent);
+}
+
+/* Current section label next to the toggle */
+:root mobile-starlight-toc .display-current {
+	color: var(--t-text-muted) !important;
+	font-size: 0.78rem;
+	font-style: italic;
+	opacity: 0.85;
+}
+
+/* Dropdown panel — must float above page content */
+:root mobile-starlight-toc .dropdown {
+	background-color: rgba(var(--t-surface-3-rgb), 1) !important;
+	border: 1px solid rgba(var(--t-line-rgb), 0.22) !important;
+	border-top: none !important;
+	box-shadow: 0 12px 32px rgba(var(--t-line-rgb), 0.22) !important;
+	backdrop-filter: blur(14px);
+	position: absolute !important;
+	top: 100%;
+	inset-inline: 0;
+	z-index: 10001 !important;
+}
+
+/* Links inside the dropdown */
+:root mobile-starlight-toc .dropdown a {
+	color: var(--t-text-muted) !important;
+	font-size: 0.85rem;
+	font-weight: 400;
+	padding: 0.55rem 1rem !important;
+	border-radius: 0 !important;
+	border-inline-start: 2px solid transparent;
+	line-height: 1.45;
+	transition: background 0.15s ease, color 0.15s ease, border-color 0.15s ease;
+}
+
+:root mobile-starlight-toc .dropdown a:hover {
+	color: var(--t-text-strong) !important;
+	background: rgba(var(--t-accent-rgb), 0.05) !important;
+	border-inline-start-color: rgba(var(--t-accent-rgb), 0.30);
+}
+
+:root mobile-starlight-toc .dropdown a[aria-current='true'] {
+	color: var(--t-accent-strong) !important;
+	font-weight: 600;
+	background: rgba(var(--t-accent-rgb), 0.10) !important;
+	border-inline-start-color: var(--t-accent);
+}
+
+/* Nested h3 items — smaller, indented */
+:root mobile-starlight-toc .dropdown ul ul a {
+	font-size: 0.78rem !important;
+	color: var(--t-link) !important;
+	padding-inline-start: 1.8rem !important;
+}
+
+:root mobile-starlight-toc .dropdown ul {
+	list-style: none;
+	padding: 0.4rem 0 !important;
+	margin: 0;
+}
+
+/* Scrollbar inside dropdown */
+:root mobile-starlight-toc .dropdown::-webkit-scrollbar {
+	width: 4px;
+}
+:root mobile-starlight-toc .dropdown::-webkit-scrollbar-thumb {
+	background: rgba(var(--t-line-rgb), 0.30);
+	border-radius: 4px;
+}
+
+/* ══════════════════════════════════════════════════════════════════════
+   Sidebar navigation — spacious "documentation site" style (Android
+   Developers / NVIDIA docs), not a dense VSCode file tree. Generous row
+   height, real font sizes, and rounded pill rows inset from both rail
+   edges so nothing touches the glass. Indentation is padding-only — no
+   tree-guide lines, no leaf-node dots. Every value below is a token, so
+   the same rules read correctly in both the light and dark appearance.
+   ══════════════════════════════════════════════════════════════════════ */
+
+/* Section group label ("Learnings", "Stage 1") — small-caps heading with
+   real air above it, the way a docs site separates top sections. */
+:root .group-label .large {
+	font-size: 0.75rem !important;
+	font-weight: 700 !important;
+	letter-spacing: 0.08em;
+	text-transform: uppercase;
+	color: var(--t-text-muted) !important;
+}
+
+/* Group summary row — same rounded-pill treatment as a leaf link, so
+   opening a section feels like part of the same nav, not a different
+   control glued on top of it. */
+:root #starlight__sidebar details > summary {
+	padding: 0.6rem 0.75rem !important;
+	cursor: pointer;
+	border-radius: 10px !important;
+	transition: background 0.15s ease;
+}
+
+:root #starlight__sidebar details > summary:hover {
+	background: rgba(var(--t-accent-rgb), 0.10) !important;
+}
+
+/* Chevron caret — larger, calmer rotation, coloured on open/hover */
+:root #starlight__sidebar svg.caret {
+	width: 1.05rem !important;
+	height: 1.05rem !important;
+	color: var(--t-text-faint);
+	transition: transform 0.2s ease, color 0.15s ease;
+	flex-shrink: 0;
+}
+
+:root #starlight__sidebar details[open] > summary svg.caret {
+	transform: rotate(90deg);
+	color: var(--t-accent);
+}
+
+:root #starlight__sidebar details > summary:hover svg.caret {
+	color: var(--t-accent);
+}
+
+/* Sidebar nav links — comfortable row height and a real font size instead
+   of a dense file-explorer scale. */
+:root #starlight__sidebar a {
+	color: var(--t-text) !important;
+	font-size: 0.9rem !important;
+	font-weight: 400;
+	line-height: 1.5;
+	border-radius: 10px !important;
+	padding: 0.55rem 0.75rem !important;
+	border: 0 !important;
+	transition: background 0.15s ease, color 0.15s ease;
+	position: relative;
+	display: block;
+}
+
+/* Standalone top-level links (Competition Timeline, Discussion Forum)
+   read slightly bolder — Starlight already marks these `.large`. */
+:root #starlight__sidebar ul.top-level > li > a.large {
+	font-size: 0.95rem !important;
+	font-weight: 600;
+}
+
+/* A docs nav doesn't need a leaf-node dot marker. */
+:root #starlight__sidebar a::before {
+	display: none !important;
+}
+
+/* Sidebar nav links — hover: soft accent tint, same rounding as at rest */
+:root #starlight__sidebar a:hover,
+:root #starlight__sidebar a:focus {
+	color: var(--t-text-strong) !important;
+	background: rgba(var(--t-accent-rgb), 0.10) !important;
+}
+
+/* Sidebar nav links — active page: a left accent bar + faint wash rather
+   than a filled pill. A solid box against the dark theme's near-black
+   surface reads as a hard, out-of-place rectangle; a bar reads as a tab. */
+:root #starlight__sidebar a[aria-current='page'],
+:root #starlight__sidebar a[aria-current='page']:hover,
+:root #starlight__sidebar a[aria-current='page']:focus {
+	color: var(--t-accent-strong) !important;
+	font-weight: 600 !important;
+	background: rgba(var(--t-accent-rgb), 0.07) !important;
+	border-inline-start: 3px solid var(--t-accent) !important;
+	border-radius: 0 8px 8px 0 !important;
+	padding-inline-start: calc(0.75rem - 3px) !important;
+}
+
+/* Light theme keeps the solid pill treatment instead — on white, the same
+   bar-only look reads as thin and washed out, while a filled pill with a
+   hairline ring lands as a clear, deliberate highlight. */
+[data-theme='light'] #starlight__sidebar a[aria-current='page'],
+[data-theme='light'] #starlight__sidebar a[aria-current='page']:hover,
+[data-theme='light'] #starlight__sidebar a[aria-current='page']:focus {
+	background: rgba(var(--t-accent-rgb), 0.22) !important;
+	box-shadow: inset 0 0 0 1.5px rgba(var(--t-accent-rgb), 0.50);
+	border-inline-start: none !important;
+	border-radius: 10px !important;
+	padding-inline-start: 0.75rem !important;
+}
+
+/* Active trail — the ancestor group's heading tints accent, so the open
+   path down to the current page reads at a glance without a tree line.
+   The small dot in front repeats the "you are here" marker used by the
+   "On this page" heading, so it still reads at a glance once you've
+   scrolled the summary row itself out of view. */
+:root #starlight__sidebar details:has(a[aria-current='page']) > summary .group-label .large {
+	color: var(--t-accent-strong) !important;
+	display: inline-flex;
+	align-items: center;
+	gap: 0.5rem;
+}
+
+:root #starlight__sidebar details:has(a[aria-current='page']) > summary .group-label .large::before {
+	content: '';
+	flex-shrink: 0;
+	width: 6px;
+	height: 6px;
+	border-radius: 50%;
+	background: var(--t-accent);
+	box-shadow: 0 0 0 3px rgba(var(--t-accent-rgb), 0.20);
+}
+
+/* ── Nesting — indent by padding only, no VSCode-style guide line ── */
+:root #starlight__sidebar ul ul li {
+	margin-inline-start: 0.65rem !important;
+	border-inline-start: 0 !important;
+	padding-inline-start: 0.35rem !important;
+}
+
+/* Nested links read one notch smaller than the top level, matching the
+   type-scale step in the group labels above them. */
+:root #starlight__sidebar details ul a {
+	font-size: 0.875rem !important;
+}
+
+/* ── Top-level sections read as rows in a list, not stacked cards ───────
+   A filled background on every top-level row looked boxy and disconnected
+   from the rest of the panel. A flat hairline under each section — drawn
+   below its whole (possibly expanded) contents, not just its header row —
+   gives the same sense of structure without turning every entry into its
+   own raised panel. */
+:root #starlight__sidebar ul.top-level > li:not(:last-child) {
+	padding-bottom: 0.65rem;
+	border-bottom: 1px solid rgba(var(--t-line-rgb), 0.10);
+}
+
+:root #starlight__sidebar ul.top-level > li + li {
+	margin-top: 0.75rem !important;
+}
+
+:root #starlight__sidebar li > ul {
+	margin-top: 0.15rem;
+}
+
+/* ── Active-section rail ─────────────────────────────────────────────────
+   A slim accent tab flush to the sidebar's own left edge (bleeding into
+   the gutter our padding-inline reserves) marks which top-level section
+   the current page lives in — an anchor point in what was previously
+   unused space, and the "termination line" that ties the open section to
+   the panel instead of leaving it looking like a floating label. */
+:root #starlight__sidebar ul.top-level > li {
+	position: relative;
+}
+
+:root #starlight__sidebar ul.top-level > li:has(a[aria-current='page'])::before {
+	content: '';
+	position: absolute;
+	inset-inline-start: -0.85rem;
+	top: 0;
+	bottom: 0;
+	width: 4px;
+	border-radius: 0 3px 3px 0;
+	background: linear-gradient(
+		to bottom,
+		transparent 0%,
+		var(--t-accent) 14%,
+		var(--t-accent-strong) 50%,
+		var(--t-accent) 86%,
+		transparent 100%
+	);
+	box-shadow:
+		0 0 1px rgba(var(--t-accent-strong-rgb), 0.9),
+		0 0 10px rgba(var(--t-accent-rgb), 0.40);
+}
+
+/* Spotlight wash — a faint tint behind the *whole* open section, fading
+   out toward the right edge. The rail alone only reads in your side
+   vision; this makes the entire active section read as one lit-up block
+   as soon as it's on screen, even mid-scroll with the rail out of view. */
+:root #starlight__sidebar ul.top-level > li:has(a[aria-current='page']) {
+	background: linear-gradient(
+		to right,
+		rgba(var(--t-accent-rgb), 0.07),
+		rgba(var(--t-accent-rgb), 0.02) 55%,
+		transparent 85%
+	);
+	border-radius: 0 12px 12px 0;
+}
+
+/* ── Markdown content ── */
+
+/* When scrolled to the bottom, the last TOC link looks active regardless of
+   what the IntersectionObserver thinks (it can't detect the last short section) */
+.toc-at-bottom starlight-toc a.toc-last-link,
+.toc-at-bottom mobile-starlight-toc a.toc-last-link {
+	color: var(--t-accent-strong) !important;
+	font-weight: 600 !important;
+	background: rgba(var(--t-accent-rgb), 0.08) !important;
+	border-inline-start: 3px solid var(--t-accent) !important;
+	border-radius: 0 4px 4px 0 !important;
+}
+
+/* Suppress the IO-set active style on any non-last link while at the bottom */
+.toc-at-bottom starlight-toc a[aria-current='true']:not(.toc-last-link),
+.toc-at-bottom mobile-starlight-toc a[aria-current='true']:not(.toc-last-link) {
+	color: var(--t-text-muted) !important;
+	font-weight: 400 !important;
+	background: transparent !important;
+	border-inline-start: 2px solid transparent !important;
+	border-radius: 0 !important;
+}
+
+/* Headings */
+:root .sl-markdown-content h1 {
+	font-size: 2rem;
+	font-weight: 700;
+	letter-spacing: -0.03em;
+	color: var(--t-text-strong);
+	line-height: 1.2;
+	margin-bottom: 0.5em;
+}
+
+:root .sl-markdown-content h2 {
+	font-size: 1.4rem;
+	font-weight: 600;
+	letter-spacing: -0.02em;
+	color: var(--t-text-strong);
+	padding-bottom: 0.35em;
+	border-bottom: 1px solid rgba(var(--t-line-rgb), 0.20);
+	margin-top: 2.5em;
+}
+
+:root .sl-markdown-content h3 {
+	font-size: 1.15rem;
+	font-weight: 600;
+	color: var(--t-text);
+	margin-top: 2em;
+}
+
+:root .sl-markdown-content h4,
+:root .sl-markdown-content h5,
+:root .sl-markdown-content h6 {
+	font-weight: 600;
+	color: var(--t-text-muted);
+}
+
+/* Body paragraphs */
+:root .sl-markdown-content p {
+	color: var(--t-text);
+	font-size: 1rem;
+	line-height: 1.85;
+}
+
+/* Links */
+:root .sl-markdown-content a:not(:where(.not-content *)) {
+	color: var(--t-link);
+	text-decoration: none;
+	border-bottom: 1px solid rgba(var(--t-line-rgb), 0.45);
+	font-weight: 500;
+	transition: color 0.15s ease, border-color 0.15s ease;
+}
+:root .sl-markdown-content a:hover:not(:where(.not-content *)) {
+	color: var(--t-text-strong);
+	border-bottom-color: rgba(var(--t-ink-rgb), 0.7);
+}
+
+/* Inline code */
+:root .sl-markdown-content code:not(:where(.not-content *)) {
+	background: rgba(var(--t-line-rgb), 0.12);
+	color: var(--t-text-muted);
+	border: 1px solid rgba(var(--t-line-rgb), 0.25);
+	border-radius: 4px;
+	font-size: 0.85em;
+	padding: 0.1em 0.45em;
+	font-family: var(--t-font-mono);
+}
+
+/* Code blocks — Expressive Code handles syntax colors via github-light theme.
+   Only style the outer frame here; leave token colors alone. */
+:root .expressive-code .frame {
+	box-shadow: var(--t-code-shadow) !important;
+}
+
+/* Copy button — always visible, not just on hover */
+:root .expressive-code .copy {
+	opacity: 1 !important;
+}
+:root .expressive-code .copy button {
+	opacity: 1 !important;
+}
+:root .expressive-code .copy button::before {
+	opacity: 0.55 !important;
+}
+:root .expressive-code .copy button:hover::before,
+:root .expressive-code .copy button:focus::before {
+	opacity: 0.85 !important;
+}
+
+/* Raw <pre> blocks (rare — most code goes through Expressive Code) */
+:root .sl-markdown-content pre:not(.has-language):not(:where(.not-content *)) {
+	background: var(--t-code-bg) !important;
+	border: 1px solid rgba(var(--t-line-rgb), 0.25);
+	border-radius: 10px;
+	padding: 1.1rem 1.3rem;
+	font-size: 0.875rem;
+	box-shadow: var(--t-code-shadow);
+	color: var(--t-code-text);
+}
+
+/* Blockquote */
+:root .sl-markdown-content blockquote:not(:where(.not-content *)) {
+	border-inline-start: 3px solid var(--t-border-strong);
+	background: rgba(var(--t-tint-rgb), 0.12);
+	border-radius: 0 8px 8px 0;
+	padding: 0.75rem 1rem;
+	color: var(--t-text);
+	font-style: italic;
+}
+
+/* Lists */
+:root .sl-markdown-content :is(ul, ol):not(:where(.not-content *)) {
+	color: var(--t-text);
+	line-height: 1.85;
+}
+
+/* Horizontal rule — clearly visible section separator */
+:root .sl-markdown-content hr:not(:where(.not-content *)) {
+	border: 0;
+	height: 2px;
+	margin: 2.5rem auto;
+	width: 100%;
+	background: linear-gradient(
+		to right,
+		transparent 0%,
+		rgba(var(--t-line-rgb), 0.30) 15%,
+		var(--t-border-strong) 50%,
+		rgba(var(--t-line-rgb), 0.30) 85%,
+		transparent 100%
+	);
+	position: relative;
+	overflow: visible;
+}
+
+:root .sl-markdown-content hr:not(:where(.not-content *))::after {
+	content: '';
+	position: absolute;
+	top: 50%;
+	left: 50%;
+	transform: translate(-50%, -50%);
+	width: 10px;
+	height: 10px;
+	border-radius: 50%;
+	background: var(--t-accent);
+	border: 2px solid rgba(var(--t-surface-rgb), 1);
+	box-shadow: 0 0 0 1px var(--t-border-strong), 0 2px 6px rgba(var(--t-line-rgb), 0.35);
+}
+
+/* Tables
+   `display: block` is what makes the table its own scroll container (Starlight
+   does the same) — but it only scrolls with `overflow-x: auto`; `hidden` just
+   clipped the overflowing columns with no way to reach them. `width: fit-content`
+   keeps short tables from stretching edge-to-edge, and the cells wrap (see the
+   `td` rule) so narrow screens shrink the table instead of needing to scroll —
+   scrolling is the fallback for content that genuinely can't wrap. */
+.sl-markdown-content table:not(:where(.not-content *)) {
+	display: block !important;
+	width: fit-content !important;
+	min-width: min(280px, 100%);
+	max-width: 100%;
+	border-collapse: separate !important;
+	border-spacing: 0 !important;
+	border: 1px solid rgba(var(--t-sand-rgb), 0.13);
+	border-radius: 12px;
+	overflow-x: auto;
+	overflow-y: hidden;
+	overscroll-behavior-x: contain;
+	-webkit-overflow-scrolling: touch;
+	margin: 1.75rem 0;
+	font-size: 0.9375rem;
+	box-shadow: 0 4px 24px rgba(0, 0, 0, 0.35), 0 1px 0 rgba(var(--t-sand-rgb), 0.06) inset;
+}
+
+/* Scrollbar for tables that do overflow — visible enough to advertise itself */
+.sl-markdown-content table:not(:where(.not-content *))::-webkit-scrollbar {
+	height: 8px;
+}
+.sl-markdown-content table:not(:where(.not-content *))::-webkit-scrollbar-track {
+	background: transparent;
+}
+.sl-markdown-content table:not(:where(.not-content *))::-webkit-scrollbar-thumb {
+	background: rgba(var(--t-line-rgb), 0.35);
+	border-radius: 8px;
+}
+.sl-markdown-content table:not(:where(.not-content *))::-webkit-scrollbar-thumb:hover {
+	background: rgba(var(--t-line-rgb), 0.55);
+}
+.sl-markdown-content table:not(:where(.not-content *)) {
+	scrollbar-width: thin;
+	scrollbar-color: rgba(var(--t-line-rgb), 0.35) transparent;
+}
+
+:root .sl-markdown-content thead:not(:where(.not-content *)) {
+	background: linear-gradient(180deg, rgba(var(--t-line-rgb), 0.24) 0%, rgba(var(--t-line-rgb), 0.10) 100%);
+}
+
+:root .sl-markdown-content th:not(:where(.not-content *)) {
+	color: var(--t-text-strong);
+	font-size: 0.8rem;
+	font-weight: 700;
+	letter-spacing: 0.07em;
+	text-transform: uppercase;
+	padding: 0.8rem 1.4rem;
+	border-bottom: 1px solid rgba(var(--t-line-rgb), 0.30);
+	text-align: left;
+	white-space: nowrap;
+}
+
+:root .sl-markdown-content td:not(:where(.not-content *)) {
+	padding: 0.7rem 1.4rem;
+	color: var(--t-text);
+	border-bottom: 1px solid rgba(var(--t-line-rgb), 0.10);
+	vertical-align: middle;
+	/* Wrap prose cells rather than forcing a horizontal scroll. Because the
+	   table is sized `fit-content`, wide screens still lay every row out on one
+	   line — wrapping only kicks in once the table would exceed the content
+	   column. `overflow-wrap` keeps long unbroken tokens (URLs, topic names)
+	   from pushing the table wider than the screen. */
+	white-space: normal;
+	overflow-wrap: break-word;
+}
+
+/* Inline code and links inside cells stay on one line — breaking them mid-token
+   makes them unreadable; the table scrolls instead. */
+:root .sl-markdown-content td code:not(:where(.not-content *)) {
+	white-space: nowrap;
+}
+
+:root .sl-markdown-content td:first-child:not(:where(.not-content *)) {
+	color: var(--t-text-strong);
+	font-weight: 500;
+}
+
+:root .sl-markdown-content tr:last-child td:not(:where(.not-content *)) {
+	border-bottom: none;
+}
+
+:root .sl-markdown-content tbody tr:not(:where(.not-content *)) td {
+	transition: background 0.15s ease, color 0.15s ease;
+}
+
+:root .sl-markdown-content tbody tr:nth-child(even):not(:where(.not-content *)) td {
+	background: rgba(var(--t-sand-rgb), 0.10);
+}
+
+:root .sl-markdown-content tbody tr:hover:not(:where(.not-content *)) td {
+	background: rgba(var(--t-tint-rgb), 0.22);
+	color: var(--t-text-strong);
+}
+
+:root .sl-markdown-content tbody tr:hover:not(:where(.not-content *)) td:first-child {
+	color: var(--t-text-strong);
+}
+
+/* Tables inside asides — reset to normal table display, full width */
+:root .starlight-aside table:not(:where(.not-content *)) {
+	display: table !important;
+	width: 100% !important;
+	margin: 0.75rem 0 0 !important;
+	box-shadow: none;
+	border-radius: 8px;
+	border: 1px solid rgba(var(--t-line-rgb), 0.25);
+	font-size: 0.875rem;
+}
+
+:root .starlight-aside thead:not(:where(.not-content *)) {
+	background: rgba(var(--t-line-rgb), 0.15);
+}
+
+:root .starlight-aside th:not(:where(.not-content *)) {
+	padding: 0.5rem 1rem;
+	border-bottom: 1px solid rgba(var(--t-line-rgb), 0.20);
+	font-size: 0.72rem;
+}
+
+:root .starlight-aside td:not(:where(.not-content *)) {
+	padding: 0.45rem 1rem;
+}
+
+/* Aside tables scroll too, rather than pushing the callout wide */
+:root .starlight-aside :is(table, .sl-markdown-content table):not(:where(.not-content *)) {
+	max-width: 100%;
+	overflow-x: auto;
+}
+
+/* ── Tables on narrow screens ──
+   Full-bleed width so wrapping has as much room as possible, tighter cell
+   padding, and headers wrap too — a nowrap header alone was enough to push a
+   two-column table past the viewport. */
+@media (max-width: 50rem) {
+	.sl-markdown-content table:not(:where(.not-content *)) {
+		width: 100% !important;
+		margin: 1.25rem 0;
+		font-size: 0.875rem;
+	}
+
+	:root .sl-markdown-content th:not(:where(.not-content *)) {
+		padding: 0.65rem 0.85rem;
+		font-size: 0.72rem;
+		letter-spacing: 0.05em;
+		white-space: normal;
+	}
+
+	:root .sl-markdown-content td:not(:where(.not-content *)) {
+		padding: 0.6rem 0.85rem;
+		vertical-align: top;
+	}
+
+	/* Long code tokens can't wrap, so let them scroll with the table instead of
+	   stretching the row beyond the screen. */
+	:root .sl-markdown-content td code:not(:where(.not-content *)) {
+		font-size: 0.8em;
+	}
+}
+
+/* ── Aside / callout blocks ──
+   Owned entirely by src/styles/android.css. The warm-theme rules that used
+   to live here (gradient fills, drop shadows, 6px accent borders and the
+   NOTE/TIP/CAUTION/DANGER badge chips) had no DevSite equivalent and fought
+   the Android palette with per-type !important colours, so they were removed
+   rather than re-tinted. ── */
+
+/* ── Misc layout ── */
+html, body {
+	overflow-x: hidden;
+	max-width: 100vw;
+}
+
+/* Hide search on splash/home */
+html:not([data-has-sidebar]) site-search,
+html:not([data-has-sidebar]) site-search * {
+	display: none !important;
+}
+
+/* Theme switching is handled by src/components/ThemeSelect.astro, which
+   replaces Starlight's three-way <select> with a two-state switch. Only the
+   stock select is hidden — the replacement lives in the same header slot.
+   (This block used to hide every theme control on the page, back when the
+   site was locked to a single palette.) */
+starlight-theme-select select,
+starlight-theme-select .icon {
+	display: none !important;
+}
+
+/* Social icons visible on mobile */
+header .right-group {
+	display: flex !important;
+	align-items: center;
+	gap: 0.5rem;
+}
+
+/* Header tightening on small screens.
+   The row carries the title, the search button, three social links and the
+   theme switch, and on a 360px phone their natural widths overrun the space
+   by ~30px — which the title pays for, since it is the only flexible item
+   (clipping to "KrishiCo"). Every value below is trimmed to buy that back so
+   the title renders in full: the nav gutter, both gaps, the social links'
+   padding (in SocialIcons.astro) and the switch's own geometry. */
+@media (max-width: 50rem) {
+	/* Starlight's 1rem gutter, tightened. Also pulls the fixed hamburger the
+	   same 4px closer to the edge — it is positioned off this token. */
+	:root {
+		--sl-nav-pad-x: 0.75rem;
+	}
+	header .header {
+		display: flex;
+		flex-wrap: nowrap;
+		gap: 0.35rem;
+	}
+	header .title-wrapper {
+		flex: 1;
+		min-width: 0;
+	}
+	header .right-group {
+		gap: 0.3rem;
+		flex-shrink: 0;
+	}
+	/* Collapsing the labels to icons (see SocialIcons.astro) is most of what
+	   makes this row fit; these free the rest so the title needs no shrinking
+	   at all and keeps its full size on a phone. */
+	header .social-icons {
+		gap: 0.25rem;
+	}
+	/* No divider: at this width the switch sits directly beside the icons with
+	   the row gap doing the separating, and a rule would only add width. */
+	header .social-icons::after {
+		display: none;
+	}
+	/* The switch lives in the header at every width — the copy Starlight puts
+	   in the mobile menu footer is hidden instead (see below), so this is the
+	   only one on a phone. Shrunk from its 3.5rem desktop size so it costs the
+	   title as little of the row as possible; the geometry is all derived from
+	   --w/--h in ThemeSelect.astro, so the knob and its travel follow. */
+	header .theme-switch {
+		--w: 2.5rem;
+		--h: 1.35rem;
+		--travel: calc(var(--w) - var(--h) - 2px);
+	}
+}
+
+/* Starlight appends a MobileMenuFooter to the bottom of the sidebar pane —
+   social icons, theme select, language select. Every one of those is already
+   in the header on this site (the header's .right-group is force-shown on
+   mobile, and the switch above stays visible), so the footer was a second
+   copy of the top bar sitting under the nav tree. Hidden rather than
+   overridden away: the component is Starlight's, and there is nothing left
+   in it that is unique to the mobile menu. */
+.sidebar-pane .mobile-preferences {
+	display: none;
+}
+
+/* Very narrow phones (≤320px, e.g. the original iPhone SE). Even collapsed to
+   icons the row does not fit here, so the last of the slack is taken out: the
+   icon gap closes, the switch takes a second step down, and the title drops
+   one size — only at this width. */
+@media (max-width: 20.5rem) {
+	header .social-icons {
+		gap: 0;
+	}
+	header .theme-switch {
+		--w: 2.1rem;
+		--h: 1.25rem;
+		--travel: calc(var(--w) - var(--h) - 2px);
+	}
+	header .site-title {
+		font-size: 1rem !important;
+	}
+}
+
+
+/* ── Hero image ──
+   Desktop sizing and placement live with the hero band in android.css. The
+   `margin-top: -15%` that used to sit here dated from the old full-width
+   layout: against the band it pulled the illustration up out of the centre
+   line and left a matching slab of empty band underneath it. */
+@media (max-width: 50rem) {
+	.hero > img {
+		margin-inline: auto;
+		transform: translateX(10%);
+	}
+}
+
+/* ── Image compare grid (bonus task) ── */
+.image-compare-grid {
+	display: grid;
+	grid-template-columns: 1fr auto 1fr;
+	align-items: center;
+	gap: 1.25rem;
+	margin: 1.75rem 0;
+}
+
+.image-panel {
+	background: rgba(var(--t-raise-rgb), 0.30);
+	border: 1px solid var(--t-border);
+	border-radius: 12px;
+	overflow: hidden;
+	display: flex;
+	flex-direction: column;
+}
+
+.image-panel img {
+	width: 100%;
+	height: auto;
+	display: block;
+	object-fit: cover;
+}
+
+.image-panel-label {
+	font-size: 0.75rem;
+	font-weight: 600;
+	letter-spacing: 0.07em;
+	text-transform: uppercase;
+	color: var(--t-text-muted);
+	padding: 0.55rem 0.85rem 0.4rem;
+	border-bottom: 1px solid var(--t-border);
+}
+
+.image-panel-label.output-label {
+	color: var(--t-text-strong);
+}
+
+.image-panel-footer {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	padding: 0.45rem 0.85rem 0.55rem;
+	border-top: 1px solid var(--t-border);
+	gap: 0.5rem;
+}
+
+.image-caption {
+	font-size: 0.78rem !important;
+	color: var(--t-text-muted) !important;
+	line-height: 1.4 !important;
+	margin: 0 !important;
+}
+
+.download-btn {
+	display: inline-flex;
+	align-items: center;
+	gap: 0.35rem;
+	font-size: 0.75rem;
+	font-weight: 500;
+	color: var(--t-text) !important;
+	border: 1px solid var(--t-border) !important;
+	border-bottom: 1px solid var(--t-border) !important;
+	border-radius: 6px;
+	padding: 0.25rem 0.6rem;
+	text-decoration: none !important;
+	white-space: nowrap;
+	flex-shrink: 0;
+	transition: color 0.15s ease, border-color 0.15s ease, background 0.15s ease;
+}
+
+.download-btn:hover {
+	color: var(--t-text-strong) !important;
+	background: rgba(var(--t-tint-rgb), 0.22) !important;
+	border-color: var(--t-border-strong) !important;
+}
+
+.image-panel-divider {
+	font-size: 1.5rem;
+	color: var(--t-accent);
+	font-weight: 300;
+	user-select: none;
+}
+
+@media (max-width: 640px) {
+	.image-compare-grid {
+		grid-template-columns: 1fr;
+	}
+	.image-panel-divider {
+		text-align: center;
+		transform: rotate(90deg);
+	}
+}
+
+/* ── Responsive font scale ── */
+@media (max-width: 768px) {
+	:root { --sl-text-body: 0.9625rem; }
+}
+@media (max-width: 480px) {
+	:root { --sl-text-body: 0.9375rem; }
+}
+
+/* ── Collapsible sidebar ──
+   Layout is driven by --sl-sidebar-width: Starlight derives
+   --sl-content-inline-start (the .main-frame gutter) plus the .main-pane and
+   .right-sidebar-container widths from it. Zeroing that one variable on <html>
+   collapses the gutter *and* re-centres the content column in the freed space.
+   The pane itself keeps its own fixed width and slides out, so its contents
+   never reflow mid-animation. */
+:root {
+	--kc-sidebar-w:    18.75rem;                  /* Starlight's default sidebar width */
+	--kc-sidebar-dur:  340ms;
+	--kc-sidebar-ease: cubic-bezier(0.4, 0, 0.2, 1);
+
+	/* How far the toggle tab is pulled back over the sidebar's own edge. Anchored
+	   flush at --sl-sidebar-width it stands entirely inside the content column,
+	   which is invisible over prose but lands the tab on the left edge of any
+	   full-width bordered block (announcement cards, doc cards, roadmap rows) at
+	   exactly its vertical midpoint. Straddling the edge instead keeps it clear
+	   of the content at every width, including while it widens on hover. */
+	--kc-toggle-inset: 0.75rem;
+}
+
+/* ── Sidebar toggle button ── */
+#sidebar-toggle {
+	position: fixed;
+	top: 50%;
+	left: calc(var(--sl-sidebar-width, 16rem) - var(--kc-toggle-inset));
+	transform: translateY(-50%);
+	z-index: 9997;
+	width: 1.4rem;
+	height: 3.5rem;
+	border-radius: 0 8px 8px 0;
+	border: 1px solid var(--t-border);
+	border-left: none;
+	background: rgba(var(--t-raise-rgb), 0.85);
+	backdrop-filter: blur(12px);
+	color: var(--t-text-muted);
+	cursor: pointer;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	padding: 0;
+	box-shadow: none;
+	transition:
+		left var(--kc-sidebar-dur) var(--kc-sidebar-ease),
+		width 0.2s ease,
+		color 0.2s ease,
+		background 0.2s ease,
+		border-color 0.2s ease;
+}
+
+#sidebar-toggle::after {
+	content: '‹';
+	font-size: 1.1rem;
+	font-weight: 700;
+	line-height: 1;
+	transition: transform var(--kc-sidebar-dur) var(--kc-sidebar-ease);
+}
+
+#sidebar-toggle:hover {
+	width: 1.75rem;
+	color: var(--t-text-strong);
+	background: rgba(var(--t-tint-rgb), 0.55);
+	border-color: var(--t-border-strong);
+	box-shadow: none;
+}
+
+/* Collapsed state — desktop only; on mobile the hamburger controls visibility */
+@media (min-width: 50rem) {
+	/* Pin the pane's own width so collapsing slides it out rather than
+	   squeezing the nav tree down to nothing. */
+	.sidebar-pane {
+		width: var(--kc-sidebar-w);
+		transition:
+			transform var(--kc-sidebar-dur) var(--kc-sidebar-ease),
+			visibility 0s linear 0s;
+	}
+
+	/* The gutter and both content columns animate as the space is handed back */
+	.main-frame {
+		transition: padding-inline-start var(--kc-sidebar-dur) var(--kc-sidebar-ease);
+	}
+
+	.main-pane,
+	.right-sidebar-container {
+		transition: width var(--kc-sidebar-dur) var(--kc-sidebar-ease);
+	}
+
+	html.sidebar-collapsed {
+		--sl-sidebar-width: 0rem;
+		/* No sidebar edge left to straddle — the inset would hang the tab half
+		   off the left of the viewport. */
+		--kc-toggle-inset: 0rem;
+	}
+
+	html.sidebar-collapsed .sidebar-pane {
+		transform: translateX(-100%);
+		visibility: hidden;
+		/* Hide only *after* the slide finishes, so the exit stays visible */
+		transition:
+			transform var(--kc-sidebar-dur) var(--kc-sidebar-ease),
+			visibility 0s linear var(--kc-sidebar-dur);
+	}
+
+	html.sidebar-collapsed #sidebar-toggle::after {
+		transform: rotate(180deg);
+	}
+
+	/* The "On this page" panel sizes its own column from --sl-sidebar-width too,
+	   so hand the real value back inside the right sidebar — otherwise the TOC
+	   collapses to zero width and its labels wrap one letter per line. */
+	html.sidebar-collapsed .right-sidebar {
+		--sl-sidebar-width: var(--kc-sidebar-w);
+	}
+}
+
+/* Starlight positions the reading column against the TOC, so its right edge
+   works out to `content-width + (100vw - content-width) / 2` — the sidebar
+   gutter cancels out entirely. Dropping the gutter alone therefore leaves the
+   text exactly where it was and just widens the blank left margin. Growing the
+   column is what actually reclaims that space.
+
+   The clamp keeps this honest at both ends: never narrower than the expanded
+   layout, and never so wide that the TOC rail (which needs ~1 sidebar-width)
+   gets squeezed off-screen. */
+@media (min-width: 72rem) {
+	html.sidebar-collapsed {
+		--sl-content-width: clamp(
+			62rem,
+			calc(100vw - 2 * var(--kc-sidebar-w)),
+			72rem
+		);
+	}
+
+	.content-panel .sl-container {
+		transition: max-width var(--kc-sidebar-dur) var(--kc-sidebar-ease);
+	}
+}
+
+/* Below 72rem Starlight doesn't auto-centre .sl-container, so collapsing would
+   just dump the freed width on the right. Centre it ourselves. */
+@media (min-width: 50rem) and (max-width: 71.999rem) {
+	html.sidebar-collapsed .sl-container {
+		margin-inline: auto;
+	}
+}
+
+@media (max-width: 50rem) {
+	#sidebar-toggle {
+		display: none;
+	}
+}
+
+@media (prefers-reduced-motion: reduce) {
+	.sidebar-pane,
+	.main-frame,
+	.main-pane,
+	.right-sidebar-container,
+	#sidebar-toggle,
+	#sidebar-toggle::after {
+		transition-duration: 0s !important;
+	}
+}
+
+/* ── YouTube embeds + floating mini-player ──
+   .video-embed is the in-flow slot. It always reserves the 16:9 space, so when
+   the player detaches to the corner nothing below it jumps, and there is a
+   stable rectangle to animate back into. .video-mini-wrap is the thing that
+   moves: absolutely filling the slot normally, position:fixed when floating.
+   .video-mini-stage holds the iframe so a header strip can sit above it while
+   docked without ever re-parenting the frame. */
+:root {
+	--kc-mini-width: min(380px, 42vw);
+	--kc-mini-inset: 1.25rem;
+	--kc-mini-head: 2.15rem;
+	/* header + 16:9 body — used to lift #scroll-to-top clear of the player */
+	--kc-mini-height: calc(var(--kc-mini-width) * 0.5625 + var(--kc-mini-head));
+	--kc-mini-min-width: 200px;
+	--kc-mini-max-width: min(720px, 92vw);
+}
+
+.video-embed {
+	position: relative;
+	display: block;
+	width: 100%;
+	aspect-ratio: 16 / 9;
+	margin: 1.5rem 0;
+}
+
+.video-mini-wrap {
+	position: absolute;
+	inset: 0;
+	border-radius: 10px;
+	overflow: hidden;
+	background: #000;
+	border: 1px solid var(--t-border);
+}
+
+.video-mini-stage {
+	position: absolute;
+	inset: 0;
+	/* Backstop for Starlight's adjacent-sibling margin rule; the wrapper also
+	   carries .not-content. Without this the docked player shows a 1rem gap
+	   between its header and the video. */
+	margin: 0;
+}
+
+.video-mini-stage > iframe {
+	display: block;
+	width: 100%;
+	height: 100%;
+	border: 0;
+}
+
+.video-mini-wrap.is-floating {
+	position: fixed;
+	/* JS sets --kc-mini-x/--kc-mini-y (px, from top-left) once the player is
+	   dragged; until then it falls back to the original bottom-right dock. */
+	inset: auto var(--kc-mini-inset) var(--kc-mini-inset) auto;
+	left: var(--kc-mini-x, auto);
+	top: var(--kc-mini-y, auto);
+	right: var(--kc-mini-x, var(--kc-mini-inset));
+	bottom: var(--kc-mini-y, var(--kc-mini-inset));
+	width: var(--kc-mini-user-width, var(--kc-mini-width));
+	height: auto;
+	display: flex;
+	flex-direction: column;
+	z-index: 9998;
+	border-radius: 12px;
+	border-color: rgba(var(--t-line-rgb), 0.35);
+	background: rgba(var(--t-surface-2-rgb), 1);
+	box-shadow: 0 18px 48px rgba(0, 0, 0, 0.40), 0 0 0 1px rgba(var(--t-line-rgb), 0.28);
+	touch-action: none;
+}
+
+/* Once the player has been dragged, JS switches it to explicit left/top so it
+   no longer tracks the right/bottom edge (which would otherwise fight a
+   manual position by resizing the box whenever the viewport changes). */
+.video-mini-wrap.is-floating.is-positioned {
+	right: auto;
+	bottom: auto;
+}
+
+.video-mini-wrap.is-floating .video-mini-stage {
+	position: relative;
+	inset: auto;
+	width: 100%;
+	aspect-ratio: 16 / 9;
+	/* Flex items default to min-height:auto, and an <iframe>'s intrinsic 150px
+	   height then wins over the aspect ratio once the player is narrow enough
+	   for 16:9 to fall below it — which letterboxed the video on phones. */
+	min-height: 0;
+}
+
+/* Carried over from another page: no slot to fly out of, so it slides in. */
+.video-mini-wrap.is-detached {
+	animation: kcMiniSlideIn 0.28s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+@keyframes kcMiniSlideIn {
+	from { transform: translateY(14px); opacity: 0; }
+	to   { transform: translateY(0);    opacity: 1; }
+}
+
+/* FLIP: JS measures old/new rects, pins the wrapper back to where it was with a
+   transform, then releases it. Scaling the frame for ~320ms reads as a morph. */
+.video-mini-wrap.is-animating {
+	transform-origin: top left;
+	will-change: transform;
+}
+
+/* ── Docked header strip ──
+   The controls sit above the video rather than over it. An overlay button in
+   the top-right fought YouTube's own "Watch later"/"Share" controls for the
+   same pixels, and hover-only visibility made it hard to find at all. */
+.video-mini-head {
+	display: none;
+	align-items: center;
+	gap: 0.45rem;
+	height: var(--kc-mini-head);
+	flex: 0 0 var(--kc-mini-head);
+	padding: 0 0.3rem 0 0.6rem;
+	background: rgba(var(--t-surface-2-rgb), 1);
+	border-bottom: 1px solid rgba(var(--t-line-rgb), 0.22);
+}
+
+.video-mini-wrap.is-floating .video-mini-head {
+	display: flex;
+	cursor: grab;
+	user-select: none;
+	touch-action: none;
+}
+
+.video-mini-wrap.is-floating .video-mini-head:active {
+	cursor: grabbing;
+}
+
+/* Corner resize handle — shown only while floating. A diagonal grip drawn with
+   a repeating gradient rather than an image, so it re-tints with the theme. */
+.video-mini-resize {
+	display: none;
+	position: absolute;
+	right: 0;
+	bottom: 0;
+	width: 1.1rem;
+	height: 1.1rem;
+	cursor: nwse-resize;
+	touch-action: none;
+	z-index: 1;
+	background:
+		linear-gradient(135deg, transparent 0 45%, rgba(var(--t-line-rgb), 0.55) 45% 55%, transparent 55% 100%),
+		linear-gradient(135deg, transparent 0 65%, rgba(var(--t-line-rgb), 0.55) 65% 75%, transparent 75% 100%);
+}
+
+.video-mini-wrap.is-floating .video-mini-resize {
+	display: block;
+}
+
+.video-mini-wrap.is-resizing {
+	transition: none !important;
+}
+
+.video-mini-dot {
+	flex: 0 0 auto;
+	width: 6px;
+	height: 6px;
+	border-radius: 50%;
+	background: var(--t-accent);
+	box-shadow: 0 0 0 2px rgba(var(--t-accent-rgb), 0.20);
+}
+
+.video-mini-title {
+	flex: 1 1 auto;
+	min-width: 0;
+	overflow: hidden;
+	white-space: nowrap;
+	text-overflow: ellipsis;
+	font-size: 0.74rem;
+	font-weight: 600;
+	color: var(--t-text-strong);
+}
+
+.video-mini-btn {
+	flex: 0 0 auto;
+	/* Starlight gives adjacent siblings inside .sl-markdown-content a 1rem
+	   top margin, which knocks the close button out of line with the back
+	   button. The header also carries .not-content; this is the backstop. */
+	margin: 0;
+	width: 1.6rem;
+	height: 1.6rem;
+	border-radius: 6px;
+	border: 1px solid transparent;
+	background: transparent;
+	color: var(--t-text-muted);
+	cursor: pointer;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	padding: 0;
+	transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease;
+}
+
+.video-mini-btn:hover,
+.video-mini-btn:focus-visible {
+	background: rgba(var(--t-tint-rgb), 0.30);
+	border-color: rgba(var(--t-line-rgb), 0.38);
+	color: var(--t-text-strong);
+}
+
+.video-mini-close:hover,
+.video-mini-close:focus-visible {
+	background: #dc2626;
+	border-color: #b91c1c;
+	color: #fff;
+}
+
+/* ── Tool row beneath each embed ──
+   Outside the player, so it never fights YouTube's hover controls for space. */
+.video-embed-tools {
+	display: flex;
+	justify-content: flex-end;
+	gap: 0.5rem;
+	margin: -0.9rem 0 1.5rem;
+}
+
+.video-embed-tool {
+	display: inline-flex;
+	align-items: center;
+	gap: 0.35rem;
+	padding: 0.28rem 0.6rem;
+	border-radius: 999px;
+	font-size: 0.74rem;
+	font-weight: 600;
+	line-height: 1.2;
+	text-decoration: none;
+	cursor: pointer;
+	color: var(--t-text-muted);
+	background: rgba(var(--t-sand-rgb), 0.22);
+	border: 1px solid var(--t-border);
+	transition: background 0.18s ease, border-color 0.18s ease, color 0.18s ease,
+		opacity 0.18s ease;
+}
+
+.video-embed-tool:hover:not(:disabled) {
+	background: rgba(var(--t-tint-rgb), 0.42);
+	border-color: var(--t-border-strong);
+	color: var(--t-text-strong);
+}
+
+/* Nothing to pop out until the video has actually started. */
+.video-embed-tool:disabled {
+	opacity: 0.42;
+	cursor: not-allowed;
+}
+
+/* While docked, the floating player carries its own back/close controls. */
+.video-embed.is-popped + .video-embed-tools .video-embed-pop {
+	display: none;
+}
+
+/* Mark the vacated slot, so the reserved 16:9 gap doesn't read as a broken
+   embed while the player is docked in the corner. */
+.video-embed.is-popped::after {
+	content: 'Playing in mini-player';
+	position: absolute;
+	inset: 0;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	border: 1px dashed rgba(var(--t-line-rgb), 0.35);
+	border-radius: 10px;
+	background: rgba(var(--t-sand-rgb), 0.10);
+	color: var(--t-link);
+	font-size: 0.8rem;
+	font-weight: 600;
+	letter-spacing: 0.02em;
+}
+
+/* Starlight sets `isolation: isolate` on .main-pane, which makes it a stacking
+   context — so the docked player's z-index is trapped inside the article column
+   and the fixed right sidebar (later in the DOM) paints straight over it,
+   swallowing the header buttons. Lift the whole pane above the sidebars while a
+   player is docked, staying under the site header (z-index 10).
+
+   Desktop only, deliberately. Below 50rem there is no right sidebar to escape,
+   and the left sidebar becomes a full-screen menu overlay — lifting the pane
+   there would paint the article (and the player) over the open menu and hide
+   most of its links. */
+@media (min-width: 50rem) {
+	html.has-miniplayer .main-pane {
+		position: relative;
+		z-index: 6;
+	}
+}
+
+/* On small screens the menu is an overlay that owns the whole screen; a video
+   floating over it is in the way. Step aside until it closes. */
+@media (max-width: 50rem) {
+	body[data-mobile-menu-expanded] .video-mini-wrap.is-floating {
+		opacity: 0;
+		pointer-events: none;
+	}
+}
+
+/* Keep the scroll-to-top button clear of the docked player. --kc-mini-actual-h
+   is measured from the live element by the mini-player script; the calc()
+   estimate is only the fallback before that first measurement lands, since it
+   cannot account for borders or the header's real rendered height. */
+html.has-miniplayer #scroll-to-top {
+	bottom: calc(var(--kc-mini-inset) + var(--kc-mini-actual-h, var(--kc-mini-height)) + 0.75rem);
+	transition: bottom 0.32s cubic-bezier(0.22, 1, 0.36, 1), opacity 0.25s ease,
+		background 0.2s ease, color 0.2s ease, transform 0.2s ease;
+}
+
+@media (max-width: 640px) {
+	:root {
+		--kc-mini-width: 62vw;
+		--kc-mini-inset: 0.75rem;
+	}
+}
+
+/* On narrow screens the article fills the width, so a right-aligned tool row
+   lands exactly under the fixed scroll-to-top button and the two collide as
+   the page scrolls. Send the tools to the left instead; the arrow keeps the
+   bottom-right corner to itself. */
+@media (max-width: 50rem) {
+	.video-embed-tools {
+		justify-content: flex-start;
+	}
+}
+
+@media (prefers-reduced-motion: reduce) {
+	.video-mini-wrap,
+	.video-mini-wrap.is-detached,
+	html.has-miniplayer #scroll-to-top {
+		transition-duration: 0s !important;
+		animation: none !important;
+	}
+}
+
+/* ── Search trigger button (in header) ──
+   Carries a visible hairline at rest so the pill reads as a distinct control
+   against the page background — this matters most in the light theme, where
+   the tint alone (rgba(--t-tint-rgb), 0.14) is too faint to read as an edge. */
+site-search button[data-open-modal],
+:root site-search button[data-open-modal] {
+	background: rgba(var(--t-tint-rgb), 0.14) !important;
+	border: 1px solid rgba(var(--t-line-rgb), 0.45) !important;
+	outline: none !important;
+	box-shadow: none !important;
+	color: var(--t-text-strong) !important;
+	border-radius: 8px;
+	transition: background 0.15s ease, border-color 0.15s ease;
+}
+site-search button[data-open-modal]:hover,
+:root site-search button[data-open-modal]:hover {
+	background: rgba(var(--t-tint-rgb), 0.26) !important;
+	border-color: rgba(var(--t-line-rgb), 0.60) !important;
+}
+/* Keyboard-only focus keeps a visible ring for accessibility */
+site-search button[data-open-modal]:focus-visible,
+:root site-search button[data-open-modal]:focus-visible {
+	background: rgba(var(--t-tint-rgb), 0.26) !important;
+	border-color: var(--t-accent) !important;
+}
+site-search button[data-open-modal] svg,
+:root site-search button[data-open-modal] svg {
+	color: var(--t-link) !important;
+}
+site-search button[data-open-modal] kbd,
+:root site-search button[data-open-modal] kbd {
+	background: transparent !important;
+	border: none !important;
+	box-shadow: none !important;
+	color: var(--t-text-muted) !important;
+	border-radius: 4px;
+}
+
+/* ── Search modal dialog ── */
+:root dialog[aria-label*='earch'] {
+	background: rgba(var(--t-surface-3-rgb), 1) !important;
+	overflow: hidden !important;
+}
+
+/* Backdrop */
+:root dialog[aria-label*='earch']::backdrop {
+	background: rgba(var(--t-ink-rgb), 0.45) !important;
+	backdrop-filter: blur(6px) !important;
+}
+
+/* Inner frame padding */
+:root dialog[aria-label*='earch'] .dialog-frame {
+	padding: 1.25rem !important;
+	gap: 0 !important;
+}
+
+/* Dev-mode warning */
+:root dialog[aria-label*='earch'] .dialog-frame p {
+	color: var(--t-text-muted) !important;
+	font-size: 0.9rem;
+	line-height: 1.6;
+}
+
+/* Cancel button */
+:root dialog[aria-label*='earch'] button[data-close-modal] {
+	color: var(--t-text-muted) !important;
+	font-size: 0.875rem !important;
+	font-weight: 600;
+	border-radius: 6px;
+	padding: 0.25rem 0.75rem !important;
+	border: 1px solid rgba(var(--t-line-rgb), 0.28) !important;
+	background: rgba(var(--t-raise-rgb), 0.50) !important;
+	margin-bottom: 0.75rem;
+	transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease;
+}
+:root dialog[aria-label*='earch'] button[data-close-modal]:hover {
+	background: rgba(var(--t-tint-rgb), 0.28) !important;
+	border-color: rgba(var(--t-line-rgb), 0.50) !important;
+	color: var(--t-text-strong) !important;
+}
+
+/* Search input */
+:root dialog[aria-label*='earch'] .pagefind-ui__search-input,
+:root dialog[aria-label*='earch'] input[type='search'] {
+	background: rgba(var(--t-surface-3-rgb), 1) !important;
+	border: 1.5px solid rgba(var(--t-line-rgb), 0.55) !important;
+	color: var(--t-text) !important;
+	border-radius: 10px !important;
+	transition: border-color 0.15s ease, background 0.15s ease, box-shadow 0.15s ease;
+}
+:root dialog[aria-label*='earch'] .pagefind-ui__search-input:focus,
+:root dialog[aria-label*='earch'] input[type='search']:focus {
+	border-color: var(--t-accent) !important;
+	background: rgba(var(--t-surface-3-rgb), 1) !important;
+	outline: none !important;
+	box-shadow: 0 0 0 3px rgba(var(--t-tint-rgb), 0.20) !important;
+}
+
+/* Divider between input and results */
+:root #starlight__search .pagefind-ui__form {
+	padding-bottom: 1rem;
+	margin-bottom: 0.25rem;
+	border-bottom: 1px solid rgba(var(--t-line-rgb), 0.14);
+}
+
+/* Pagefind CSS variables — driven off the theme tokens so the search results
+   follow the active appearance instead of staying on the old warm palette. */
+:root #starlight__search {
+	--pagefind-ui-primary:    var(--t-link);
+	--pagefind-ui-text:       var(--t-text);
+	--pagefind-ui-background: rgba(var(--t-body-rgb), 1);
+	--pagefind-ui-border:     var(--t-border);
+	--pagefind-ui-tag:        var(--t-raise);
+}
+
+/* Top-level text color */
+:root #starlight__search .pagefind-ui {
+	color: var(--t-text) !important;
+}
+
+/* Search icon */
+:root #starlight__search .pagefind-ui__form::before {
+	background-color: var(--t-text-muted) !important;
+	opacity: 0.65 !important;
+}
+
+/* Messages — "no results", count, loading */
+:root #starlight__search .pagefind-ui__message {
+	color: var(--t-text-muted) !important;
+	font-size: 0.9rem !important;
+}
+
+/* Result item row — remove default padding/border, use card gap instead */
+:root #starlight__search .pagefind-ui__result {
+	padding-top: 0.5rem !important;
+	padding-bottom: 0 !important;
+	border-top: none !important;
+	border-bottom: none !important;
+}
+
+/* Result card */
+:root #starlight__search
+	.pagefind-ui__result-title:not(:where(.pagefind-ui__result-nested *)),
+:root #starlight__search .pagefind-ui__result-nested {
+	background: rgba(var(--t-surface-3-rgb), 1) !important;
+	border-radius: 8px !important;
+	border: 1px solid rgba(var(--t-line-rgb), 0.14) !important;
+	transition: background 0.12s ease, border-color 0.12s ease !important;
+}
+
+/* Result card hover / focus */
+:root #starlight__search
+	.pagefind-ui__result-title:not(:where(.pagefind-ui__result-nested *)):hover,
+:root #starlight__search
+	.pagefind-ui__result-title:not(:where(.pagefind-ui__result-nested *)):focus-within,
+:root #starlight__search .pagefind-ui__result-nested:hover,
+:root #starlight__search .pagefind-ui__result-nested:focus-within {
+	background: rgba(var(--t-tint-rgb), 0.22) !important;
+	border-color: rgba(var(--t-line-rgb), 0.36) !important;
+	outline: none !important;
+}
+
+/* Result title link */
+:root #starlight__search .pagefind-ui__result-link {
+	color: var(--t-text-strong) !important;
+}
+:root #starlight__search .pagefind-ui__result-link:hover {
+	color: var(--t-link) !important;
+	text-decoration: underline !important;
+}
+
+/* Excerpt */
+:root #starlight__search .pagefind-ui__result-excerpt {
+	color: var(--t-text-muted) !important;
+	line-height: 1.6 !important;
+}
+
+/* Highlighted search term */
+:root #starlight__search mark {
+	color: var(--t-accent-strong) !important;
+	background: rgba(var(--t-accent-rgb), 0.14) !important;
+	border-radius: 3px;
+	padding: 0.05em 0.25em;
+	font-weight: 700;
+}
+
+/* Load more button */
+:root #starlight__search .pagefind-ui__button {
+	color: var(--t-text-strong) !important;
+	background: rgba(var(--t-raise-rgb), 0.50) !important;
+	border: 1.5px solid rgba(var(--t-line-rgb), 0.32) !important;
+	border-radius: 8px !important;
+	font-weight: 600 !important;
+	transition: background 0.15s ease, border-color 0.15s ease !important;
+}
+:root #starlight__search .pagefind-ui__button:hover {
+	color: var(--t-text-strong) !important;
+	background: rgba(var(--t-tint-rgb), 0.28) !important;
+	border-color: rgba(var(--t-line-rgb), 0.55) !important;
+}
+
+/* Clear (×) icon */
+:root #starlight__search .pagefind-ui__search-clear::before {
+	background-color: var(--t-border-strong) !important;
+}
+:root #starlight__search .pagefind-ui__search-clear:hover::before {
+	background-color: var(--t-text) !important;
+}
+
+/* Scrollbar inside dialog */
+:root dialog[aria-label*='earch'] ::-webkit-scrollbar {
+	width: 5px;
+}
+:root dialog[aria-label*='earch'] ::-webkit-scrollbar-thumb {
+	background: rgba(var(--t-line-rgb), 0.32);
+	border-radius: 4px;
+}
+:root dialog[aria-label*='earch'] ::-webkit-scrollbar-thumb:hover {
+	background: rgba(var(--t-line-rgb), 0.55);
+}
+
+/* ── Scrollbars (page + sidebar) ── */
+:root * {
+	scrollbar-color: var(--t-accent) rgba(var(--t-tint-rgb), 0.12);
+	scrollbar-width: thin;
+}
+
+:root ::-webkit-scrollbar {
+	width: 10px;
+	height: 10px;
+}
+
+:root ::-webkit-scrollbar-track {
+	background: rgba(var(--t-tint-rgb), 0.12);
+	border-radius: 8px;
+}
+
+:root ::-webkit-scrollbar-thumb {
+	background: var(--t-accent);
+	border-radius: 8px;
+	border: 2px solid rgba(var(--t-surface-rgb), 0.85);
+}
+
+:root ::-webkit-scrollbar-thumb:hover {
+	background: var(--t-border-strong);
+}
+
+:root ::-webkit-scrollbar-corner {
+	background: transparent;
+}
+
+/* Sidebar scrollbar — slightly narrower for visual balance, and hidden
+   entirely until the pointer is over the sidebar (or it holds keyboard
+   focus) — the resting state stays visually quiet in both themes. */
+:root .sidebar-pane::-webkit-scrollbar,
+:root #starlight__sidebar::-webkit-scrollbar {
+	width: 8px;
+}
+
+:root .sidebar-pane,
+:root #starlight__sidebar {
+	scrollbar-color: transparent transparent;
+}
+
+:root .sidebar-pane::-webkit-scrollbar-thumb,
+:root #starlight__sidebar::-webkit-scrollbar-thumb {
+	background: transparent;
+	border: 1px solid transparent;
+	transition: background-color 0.15s ease, border-color 0.15s ease;
+}
+
+:root .sidebar-pane:hover,
+:root .sidebar-pane:focus-within,
+:root #starlight__sidebar:hover,
+:root #starlight__sidebar:focus-within {
+	scrollbar-color: var(--t-accent) rgba(var(--t-tint-rgb), 0.12);
+}
+
+:root .sidebar-pane:hover::-webkit-scrollbar-thumb,
+:root .sidebar-pane:focus-within::-webkit-scrollbar-thumb,
+:root #starlight__sidebar:hover::-webkit-scrollbar-thumb,
+:root #starlight__sidebar:focus-within::-webkit-scrollbar-thumb {
+	background: var(--t-accent);
+	border-color: rgba(var(--t-surface-rgb), 0.85);
+}
+
+:root .sidebar-pane:hover::-webkit-scrollbar-thumb:hover,
+:root #starlight__sidebar:hover::-webkit-scrollbar-thumb:hover {
+	background: var(--t-border-strong);
+}
+
+/* ── Scroll-to-top button ── */
+#scroll-to-top {
+	position: fixed;
+	bottom: 2rem;
+	right: 2rem;
+	z-index: 9999;
+	width: 2.75rem;
+	height: 2.75rem;
+	border-radius: 50%;
+	border: 1px solid rgba(var(--t-line-rgb), 0.30);
+	background: rgba(var(--t-raise-rgb), 0.92);
+	backdrop-filter: blur(12px);
+	color: var(--t-text-muted);
+	font-size: 1.1rem;
+	cursor: pointer;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	opacity: 0;
+	pointer-events: none;
+	transition: opacity 0.25s ease, background 0.2s ease, color 0.2s ease, transform 0.2s ease;
+}
+
+#scroll-to-top.visible {
+	opacity: 1;
+	pointer-events: auto;
+}
+
+#scroll-to-top:hover {
+	background: rgba(var(--t-tint-rgb), 0.50);
+	border-color: rgba(var(--t-line-rgb), 0.60);
+	color: var(--t-text-strong);
+	transform: translateY(-2px);
+}
+
+#scroll-to-top svg {
+	width: 1.1rem;
+	height: 1.1rem;
+	stroke: currentColor;
+	fill: none;
+	stroke-width: 2.5;
+	stroke-linecap: round;
+	stroke-linejoin: round;
+}
+
+/* ── Icon list ──
+   Produced by the `remarkIconList` plugin in astro.config.mjs, which
+   flags any plain markdown list whose items all start with an image.
+   Renders that list as a compact, wrapping row instead of the tall
+   default <ul> stack — no HTML authored in the markdown source. */
+.icon-list {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 0.6rem 1.4rem;
+	list-style: none;
+	padding: 0;
+	margin: 1rem 0;
+}
+
+.icon-list > li {
+	display: flex;
+	align-items: center;
+	gap: 0.5rem;
+	margin: 0;
+}
+
+.icon-list img {
+	display: inline-block;
+	vertical-align: middle;
+	margin: 0;
+}
