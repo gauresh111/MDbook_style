@@ -1,0 +1,138 @@
+---
+/**
+ * "I've done this one" — placed at the end of a step's prose.
+ *
+ * The checklist panel at the top of the page is the map; this is the tick you
+ * reach for at the moment you finish, without scrolling back up. Both write to
+ * the same store, so either one updates the other.
+ *
+ * Deliberately not a wrapper around the step's content: keeping it a leaf means
+ * the headings stay in the table of contents and the code blocks stay in the
+ * Expressive Code pipeline.
+ *
+ * `Verify` renders one of these too, so a step whose outcome can be checked
+ * gets the tick attached to the check rather than sitting loose beneath it.
+ */
+interface Props {
+	group: string;
+	id: string;
+	/** Names the step for assistive tech, which otherwise hears "mark as done"
+	 *  eight times on one page with nothing to tell them apart. */
+	label?: string;
+	/** Sits inside the verify block's footer rather than standing on its own. */
+	inline?: boolean;
+}
+
+const { group, id, label, inline = false } = Astro.props;
+const boxId = `step-${group}-${id}`;
+---
+
+<div class={`stepmark not-content${inline ? ' stepmark--inline' : ''}`} data-stepmark>
+	<input
+		type="checkbox"
+		class="stepmark__box"
+		id={boxId}
+		data-step-key={`${group}/${id}`}
+		aria-label={label ? `Mark step "${label}" as done` : undefined}
+	/>
+	<label class="stepmark__label" for={boxId}>
+		<span class="stepmark__text">Mark as done</span>
+		<svg class="stepmark__tick" viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="20 6 9 17 4 12"></polyline></svg>
+	</label>
+</div>
+
+<style>
+/* A quiet row, aligned left with the prose. Eight of these run down the
+   installation page — anything with a fill or a border reads as eight more
+   callouts competing with the actual instructions. */
+.stepmark {
+	display: flex;
+	align-items: center;
+	gap: 0.5rem;
+	margin: 0.9rem 0 2rem;
+}
+
+.stepmark--inline {
+	margin: 0;
+}
+
+.stepmark__box {
+	inline-size: 0.95rem;
+	block-size: 0.95rem;
+	margin: 0;
+	accent-color: var(--t-accent);
+	cursor: pointer;
+}
+
+.stepmark__label {
+	display: inline-flex;
+	align-items: center;
+	gap: 0.35rem;
+	font-size: 0.8rem;
+	line-height: 1.4;
+	color: var(--t-text-faint);
+	cursor: pointer;
+	user-select: none;
+}
+
+.stepmark__box:checked + .stepmark__label {
+	color: var(--t-accent);
+}
+
+/* The tick draws itself rather than fading in. Ticking a step is the one
+   deliberate act on these pages, and a stroke that completes is the smallest
+   possible acknowledgement of it. Dash length is the polyline's own length,
+   ~22.6 units, rounded up so the line clears fully when hidden. */
+.stepmark__tick {
+	opacity: 0;
+	stroke-dasharray: 24;
+	stroke-dashoffset: 24;
+	transition: opacity 0.12s ease, stroke-dashoffset 0.3s ease 0.04s;
+}
+
+.stepmark__box:checked + .stepmark__label .stepmark__tick {
+	opacity: 1;
+	stroke-dashoffset: 0;
+}
+
+.stepmark__box:checked + .stepmark__label .stepmark__text::after {
+	content: ' — done';
+}
+
+@media (prefers-reduced-motion: reduce) {
+	.stepmark__tick {
+		transition: none;
+		stroke-dashoffset: 0;
+	}
+}
+</style>
+
+<script>
+	import { isDone, setDone, onChange } from '../internal/progress';
+
+	/* One pass over every marker on the page, including the ones `Verify`
+	   rendered — they are the same element and share this behaviour. */
+	function initStepMarks() {
+		const boxes = Array.from(document.querySelectorAll<HTMLInputElement>('[data-stepmark] [data-step-key]'));
+		const fresh = boxes.filter((box) => !box.dataset.markReady);
+		if (!fresh.length) return;
+
+		for (const box of fresh) {
+			box.dataset.markReady = '1';
+			box.addEventListener('change', () => setDone(box.dataset.stepKey ?? '', box.checked));
+		}
+
+		function render() {
+			for (const box of boxes) box.checked = isDone(box.dataset.stepKey ?? '');
+		}
+
+		/* These are scattered across the page rather than under one root, so the
+		   first of them stands in for the set — once a view transition has
+		   replaced the page, none of them are attached. */
+		onChange(render, boxes[0]);
+		render();
+	}
+
+	initStepMarks();
+	document.addEventListener('astro:page-load', initStepMarks);
+</script>

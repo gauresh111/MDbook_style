@@ -1,0 +1,122 @@
+---
+interface Robot {
+  avatar: string;
+  name: string;
+  role: string;
+  features: string[];
+}
+
+interface Props {
+  robots: Robot[];
+}
+
+const { robots } = Astro.props;
+---
+
+<div class="robot-cards">
+  {robots.map((robot, i) => (
+    <>
+      {i > 0 && <div class="robot-vs">VS</div>}
+      <div class="robot-card">
+        <div class="robot-avatar">{robot.avatar}</div>
+        <h4>{robot.name}</h4>
+        <p>{robot.role}</p>
+        <ul>
+          {robot.features.map(f => <li>{f}</li>)}
+        </ul>
+      </div>
+    </>
+  ))}
+</div>
+
+<style>
+.robot-cards {
+  display: flex;
+  gap: 1.5rem;
+  align-items: center;
+  justify-content: center;
+  flex-wrap: wrap;
+}
+
+.robot-card {
+  background: rgba(var(--t-raise-rgb), 0.35);
+  border: 1px solid rgba(var(--t-line-rgb), 0.20);
+  border-radius: 1.25rem;
+  padding: 1.75rem 2rem;
+  flex: 1;
+  min-width: 220px;
+  max-width: 300px;
+  text-align: center;
+  transition: border-color 0.2s, transform 0.2s;
+}
+
+.robot-card:hover {
+  border-color: rgba(var(--t-line-rgb), 0.50);
+  transform: translateY(-3px);
+}
+
+.robot-avatar {
+  font-size: 2.75rem;
+  margin-bottom: 0.75rem;
+}
+
+.robot-card h4 {
+  font-size: 1.2rem;
+  font-weight: 800;
+  margin: 0 0 0.2rem;
+  color: var(--t-text-strong);
+}
+
+.robot-card > p {
+  font-size: 0.78rem;
+  color: var(--t-link);
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  margin: 0 0 1rem;
+}
+
+.robot-card ul {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  text-align: left;
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+
+.robot-card ul li {
+  font-size: 0.85rem;
+  color: var(--t-text);
+  padding-left: 1.1rem;
+  position: relative;
+}
+
+.robot-card ul li::before {
+  content: '→';
+  position: absolute;
+  left: 0;
+  color: var(--t-accent);
+  font-size: 0.75rem;
+}
+
+.robot-vs {
+  font-size: 0.85rem;
+  font-weight: 800;
+  color: var(--t-link);
+  letter-spacing: 0.1em;
+  flex-shrink: 0;
+}
+
+@media (max-width: 640px) {
+  .robot-cards {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .robot-card {
+    max-width: 100%;
+  }
+}
+</style>

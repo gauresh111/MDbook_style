@@ -1,0 +1,198 @@
+---
+/**
+ * The point of a step, in one short passage, under its heading.
+ *
+ * Used on the installation pages only. That is where a student is pasting
+ * commands they have no way to evaluate — eight blocks of shell in a row, none
+ * of which explain themselves — and it is the one place the explanation earns
+ * the room it takes up. Elsewhere the instructions carry their own reasons.
+ *
+ * Built as a card with its own mark rather than a tinted bar, so it does not
+ * read as one of Starlight's asides. Those mean "careful" and "by the way";
+ * this means "here is what you are actually doing", which is a different kind
+ * of thing and should not borrow their voice.
+ */
+interface Props {
+	/** Overridden where the passage is about a choice rather than a step. */
+	label?: string;
+}
+
+const { label = 'Why this step' } = Astro.props;
+---
+
+<aside class="why not-content" data-why>
+	<span class="why__mark" aria-hidden="true">
+		<svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18h6"></path><path d="M10 22h4"></path><path d="M15.09 14c.18-.98.65-1.74 1.41-2.5A4.65 4.65 0 0 0 18 8 6 6 0 0 0 6 8c0 1 .23 2.23 1.5 3.5A4.61 4.61 0 0 1 8.91 14"></path></svg>
+	</span>
+
+	<div class="why__body">
+		<span class="why__label">{label}</span>
+		<div class="why__text"><slot /></div>
+	</div>
+</aside>
+
+<style>
+.why {
+	position: relative;
+	display: grid;
+	grid-template-columns: auto minmax(0, 1fr);
+	gap: 0.85rem;
+	margin: 0.9rem 0 1.6rem;
+	padding: 0.9rem 1.05rem 0.95rem;
+	border: 1px solid rgba(var(--t-accent-rgb), 0.55);
+	border-radius: 0.75rem;
+	/* Tinted from the inline start and fading out, so a run of these down the
+	   page reads as a margin of colour beside the prose rather than eight solid
+	   blocks interrupting it. */
+	background:
+		linear-gradient(
+			100deg,
+			rgba(var(--t-accent-rgb), 0.1) 0%,
+			rgba(var(--t-accent-rgb), 0.04) 45%,
+			transparent 100%
+		),
+		rgb(var(--t-surface-2-rgb));
+	transition: border-color 0.25s ease, translate 0.25s ease;
+}
+
+.why:hover {
+	border-color: rgba(var(--t-accent-rgb), 0.5);
+}
+
+/* ── Mark ── */
+.why__mark {
+	display: grid;
+	place-items: center;
+	inline-size: 1.9rem;
+	block-size: 1.9rem;
+	margin-block-start: 0.05rem;
+	border-radius: 50%;
+	background: rgba(var(--t-accent-rgb), 0.14);
+	/* A soft ring instead of a border: at this size a hairline reads as a
+	   hard edge and the badge starts to look like a button. */
+	box-shadow: 0 0 0 3px rgba(var(--t-accent-rgb), 0.07);
+	color: var(--t-accent);
+}
+
+/* ── Body ── */
+.why__label {
+	display: block;
+	margin-block-end: 0.2rem;
+	font-family: var(--t-font-mono);
+	font-size: 0.66rem;
+	font-weight: 600;
+	letter-spacing: 0.09em;
+	text-transform: uppercase;
+	color: var(--t-accent);
+}
+
+/* Authored as markdown, so it arrives with Starlight's full-width prose sizing.
+   This sits under a heading as an aside and reads a step down from body copy. */
+.why__text :global(p) {
+	margin: 0;
+	font-size: 0.9rem;
+	line-height: 1.7;
+	color: var(--t-text);
+}
+
+.why__text :global(p + p) {
+	margin-block-start: 0.55rem;
+}
+
+.why__text :global(strong) {
+	color: var(--t-text-strong);
+}
+
+/* Inline code inside the passage. Quieter than the global chip — this is prose
+   about a command, not the command itself. */
+.why__text :global(code) {
+	padding: 0.08em 0.32em;
+	border-radius: 0.25rem;
+	background: rgba(var(--t-ink-rgb), 0.07);
+	font-family: var(--t-font-mono);
+	font-size: 0.85em;
+	color: var(--t-text-strong);
+}
+
+/* ── Reveal ──
+   Hidden only once the script has taken responsibility for showing it again,
+   so a bundle that fails to load cannot silently delete the explanation under
+   every heading on the page. */
+.why.is-animated {
+	opacity: 0;
+	translate: 0 10px;
+	transition: opacity 0.45s ease, translate 0.45s ease;
+}
+
+.why.is-animated.is-in {
+	opacity: 1;
+	translate: 0 0;
+}
+
+@media (max-width: 520px) {
+	.why {
+		gap: 0.65rem;
+		padding-inline: 0.85rem;
+	}
+
+	.why__mark {
+		inline-size: 1.6rem;
+		block-size: 1.6rem;
+	}
+}
+
+@media (prefers-reduced-motion: reduce) {
+	.why,
+	.why.is-animated {
+		opacity: 1;
+		translate: none;
+		transition: none;
+	}
+}
+</style>
+
+<script>
+	/* Revealed on arrival, then left alone. Unobserving after the first pass
+	   keeps a reader scrolling back up a long install guide from watching the
+	   same fade repeat all the way down it.
+	   When motion is unwelcome or unsupported the markup is left exactly as it
+	   was rendered — visible — so there is nothing to fall back to. */
+	function initWhy() {
+		const pending = Array.from(document.querySelectorAll<HTMLElement>('[data-why]')).filter(
+			(el) => !el.dataset.whyReady
+		);
+		if (!pending.length) return;
+		for (const el of pending) el.dataset.whyReady = '1';
+
+		const animate =
+			typeof IntersectionObserver === 'function' &&
+			!(
+				typeof window.matchMedia === 'function' &&
+				window.matchMedia('(prefers-reduced-motion: reduce)').matches
+			);
+		if (!animate) return;
+
+		const io = new IntersectionObserver(
+			(entries) => {
+				for (const entry of entries) {
+					if (!entry.isIntersecting) continue;
+					entry.target.classList.add('is-in');
+					io.unobserve(entry.target);
+				}
+			},
+			{ threshold: 0.2, rootMargin: '0px 0px -6% 0px' }
+		);
+
+		for (const el of pending) {
+			el.classList.add('is-animated');
+			/* Already on screen: shown in the same turn it was hidden, so the top
+			   of a long page does not flash on load. */
+			const box = el.getBoundingClientRect();
+			if (box.top < window.innerHeight && box.bottom > 0) el.classList.add('is-in');
+			else io.observe(el);
+		}
+	}
+
+	initWhy();
+	document.addEventListener('astro:page-load', initWhy);
+</script>

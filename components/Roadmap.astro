@@ -1,0 +1,378 @@
+---
+/**
+ * Competition roadmap — beats alternating either side of a rail that fills as
+ * you scroll.
+ *
+ * This component owns three things and nothing else: the rail, the geometry
+ * variables its children position themselves from, and the script that drives
+ * the whole page. Dates live on the tags in the .mdx — see RoadmapTask.
+ *
+ * Two systems run here, and keeping them apart is what makes the page readable:
+ *
+ *   The blue trail is progress through the schedule. It only ever grows.
+ *   Scrolling draws it down to meet you and it latches there, so scrolling back
+ *   up to re-read Task 1 does not un-complete Task 4 — and it can never run
+ *   past today's date, because the calendar is a ceiling, not a suggestion.
+ *
+ *   Everything else — cards sliding in, nodes flaring as the line reaches them,
+ *   the open task breathing, the countdowns ticking — is decoration over facts
+ *   already in the HTML. Losing it costs nothing.
+ */
+---
+
+<section class="roadmap not-content" data-roadmap>
+	{/* Decoration — reading order is carried by the cards themselves. */}
+	<div class="roadmap__rail" data-rail aria-hidden="true">
+		<span class="roadmap__head" aria-hidden="true"></span>
+	</div>
+	<slot />
+</section>
+
+<style>
+/* `[data-roadmap]` is carried for specificity, not just for the script:
+   Starlight's own `.sl-markdown-content :not(…)` spacing rule scores 0,1,1 and
+   exempts only the *descendants* of a .not-content element, never the element
+   itself — so a plain `.roadmap` margin would lose to it. */
+.roadmap[data-roadmap] {
+	--rail-gap: 3.25rem; /* card's inner edge → rail centre */
+	--badge: 2.6rem; /* numbered node, centred on the rail */
+	/* Badge's top edge, measured from its task's top. A stage band reads it too
+	   — the band has to cover the rail down to precisely this point, or a stub of
+	   line dangles below the band with nothing to join. */
+	--badge-top: 0.7rem;
+	/* How far a right-hand card rides up to interleave the columns. Roughly half
+	   a card: enough that the two columns mesh, not so much that the beats swap
+	   reading order. */
+	--task-pull: 3.75rem;
+
+	/* ── The three states ──
+	   One colour each, inherited by every child so a task and its subtasks
+	   cannot drift apart.
+
+	   Past takes the accent because the trail is that colour: a closed beat is
+	   the path already travelled. Live takes amber — it is the one thing on the
+	   page anybody has to act on, and it has to win against eight blue beats
+	   above it. Upcoming stays grey and says nothing loudly. */
+	--rm-past: var(--t-accent);
+	--rm-past-rgb: var(--t-accent-rgb);
+	--rm-live: #fdd663; /* Yellow 300 — 13.5:1 on the dark page */
+	--rm-live-rgb: 253, 214, 99;
+	--rm-next: var(--t-text-faint);
+
+	position: relative;
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	margin: 2.25rem 0 0;
+}
+
+/* Yellow 300 is unreadable on white, so the light theme takes a darker grade of
+   the same hue — 4.7:1, which the small mono countdown text needs. */
+:global([data-theme='light']) .roadmap[data-roadmap] {
+	--rm-live: #b06000;
+	--rm-live-rgb: 176, 96, 0;
+}
+
+/* Track and fill in one element, as a hard-stopped gradient.
+   Not a child scaled to a percentage height: that resolves to 0 here, as the
+   homepage rail found the hard way. The stop is a ready-made percentage written
+   by the script rather than `calc(var(--roadmap-fill) * 100%)`, which pins near
+   100% whatever the variable holds. */
+.roadmap__rail {
+	position: absolute;
+	inset-block: 0.5rem 1.5rem;
+	inset-inline-start: 50%;
+	translate: -50% 0;
+	inline-size: 2px;
+	border-radius: 2px;
+	z-index: 0;
+	pointer-events: none;
+	background: linear-gradient(
+		to bottom,
+		var(--rm-past) 0,
+		var(--rm-past) var(--roadmap-fill, 0%),
+		var(--t-border) var(--roadmap-fill, 0%),
+		var(--t-border) 100%
+	);
+}
+
+/* The leading edge of the trail, but only while a task is actually open — with
+   nothing running there is no "here" to mark, and a pulsing dot parked on a
+   finished schedule reads as a bug. */
+.roadmap__head {
+	position: absolute;
+	inset-block-start: var(--roadmap-fill, 0%);
+	inset-inline-start: 50%;
+	translate: -50% -50%;
+	inline-size: 0.55rem;
+	block-size: 0.55rem;
+	border-radius: 50%;
+	background: var(--rm-live);
+	opacity: 0;
+}
+
+.roadmap.has-live .roadmap__head {
+	opacity: 1;
+	animation: rm-breathe 2.4s ease-in-out infinite;
+}
+
+/* Shared by the trail head, the live badge and the live chip dot, so the three
+   pulse on one beat instead of three. Declared here and used from the child
+   components — keyframes are global even inside a scoped style block. */
+@keyframes rm-breathe {
+	0%,
+	100% {
+		box-shadow: 0 0 0 0 rgba(var(--rm-live-rgb), 0.5);
+	}
+	50% {
+		box-shadow: 0 0 0 0.42rem rgba(var(--rm-live-rgb), 0);
+	}
+}
+
+/* Fires once, when the trail reaches a node. The class latches, so it cannot
+   replay on the way back up. */
+@keyframes rm-flare {
+	from {
+		box-shadow: 0 0 0 0 rgba(var(--rm-past-rgb), 0.5);
+	}
+	to {
+		box-shadow: 0 0 0 0.85rem rgba(var(--rm-past-rgb), 0);
+	}
+}
+
+/* The stage node's ring is its mask over the rail, so its flare has to keep
+   that ring rather than replace it. */
+@keyframes rm-flare-ring {
+	from {
+		box-shadow: 0 0 0 4px rgb(var(--t-body-rgb)), 0 0 0 4px rgba(var(--rm-past-rgb), 0.5);
+	}
+	to {
+		box-shadow: 0 0 0 4px rgb(var(--t-body-rgb)), 0 0 0 0.85rem rgba(var(--rm-past-rgb), 0);
+	}
+}
+
+/* Below the fold-over point the two columns cannot both fit, so the rail moves
+   to the left edge and every beat hangs off it in one column. Same specificity
+   as the base rule, which carries `[data-roadmap]` — a bare `.roadmap` here
+   would simply lose to it and never fold. */
+@media (max-width: 720px) {
+	.roadmap[data-roadmap] {
+		--rail-gap: 0rem;
+		--badge: 2.1rem;
+		--badge-top: 0.55rem;
+	}
+
+	.roadmap__rail {
+		inset-inline-start: calc(var(--badge) / 2);
+		translate: none;
+	}
+}
+
+@media (prefers-reduced-motion: reduce) {
+	.roadmap.has-live .roadmap__head {
+		animation: none;
+	}
+}
+</style>
+
+<script>
+	import { elapsed, opensAt, stateOf } from './roadmap-dates';
+
+	function initRoadmap() {
+		const root = document.querySelector<HTMLElement>('[data-roadmap]');
+		if (!root || root.dataset.ready) return;
+		const rail = root.querySelector<HTMLElement>('[data-rail]');
+		if (!rail) return;
+		root.dataset.ready = '1';
+
+		/* Beats in rail order, each with the node the trail has to reach. Stage
+		   bands are in here too: they carry no dates, but the trail needs their
+		   nodes as the far end of the segment a task's progress runs across. */
+		const beats = Array.from(root.querySelectorAll<HTMLElement>('[data-beat]'))
+			.map((item) => ({ item, node: item.querySelector<HTMLElement>('[data-node]') }))
+			.filter((b): b is { item: HTMLElement; node: HTMLElement } => b.node !== null);
+
+		/* Everything with a deadline — tasks *and* subtasks. Subtasks are not rail
+		   beats, so they never move the trail; their parent task's span already
+		   covers them. */
+		const dated = Array.from(root.querySelectorAll<HTMLElement>('[data-when]'));
+
+		const still = window.matchMedia('(prefers-reduced-motion: reduce)');
+
+		/* Node positions as fractions down the rail, cached. Fractions rather than
+		   pixels so scrolling never invalidates them, and cached because
+		   re-measuring every node each frame to learn nothing is the difference
+		   between this being free and this being felt. */
+		let pos: number[] = [];
+		let railH = 0;
+
+		function measure() {
+			const box = rail!.getBoundingClientRect();
+			railH = box.height;
+			if (!railH) return;
+			pos = beats.map((b) => {
+				const r = b.node.getBoundingClientRect();
+				/* A hidden node — the opening band has no dot to show — measures as
+				   all zeros, which would resolve to a nonsense position above the
+				   rail. Fall back to the band's own top edge, which is where the line
+				   reaches it anyway. */
+				const centre = r.height > 0 ? r.top + r.height / 2 : b.item.getBoundingClientRect().top;
+				return (centre - box.top) / railH;
+			});
+		}
+
+		/* ── The ceiling ──
+		   How far the trail is *entitled* to reach: it may never claim more
+		   progress than the calendar has actually made. Anchored on the last beat
+		   that has opened, then carried on toward the following node in proportion
+		   to how far through that task we are. */
+		function ceiling(now: number): number {
+			let anchor = -1;
+			for (let i = 0; i < beats.length; i++) {
+				const el = beats[i]!.item;
+				/* Tasks only. Stage bands carry a span too — for their own label
+				   colour — and letting one anchor the trail would hand the fill a
+				   second, overlapping opinion about where "now" is. */
+				if (!el.hasAttribute('data-task')) continue;
+				const start = el.dataset.start;
+				if (start && opensAt(start) <= now) anchor = i;
+			}
+			if (anchor < 0) return 0;
+			const el = beats[anchor]!.item;
+			const from = pos[anchor] ?? 0;
+			const to = pos[anchor + 1] ?? 1;
+			const span = { start: el.dataset.start!, end: el.dataset.end! };
+			return Math.max(0, Math.min(1, from + elapsed(span, now) * (to - from)));
+		}
+
+		/* `latched` only ever rises, which is the whole point — the trail cannot
+		   retreat. `shown` chases the target rather than jumping to it: that is
+		   what draws the line in and keeps it continuous under the scroll. Both are
+		   monotonic in normal use; a resize is the one thing that can move the
+		   target down, and re-measuring is the right answer there. */
+		let latched = 0;
+		let shown = 0;
+		let raf = 0;
+
+		function scrollFill(): number {
+			if (!railH) return 0;
+			const top = rail!.getBoundingClientRect().top;
+			return Math.max(0, Math.min(1, (window.innerHeight * 0.62 - top) / railH));
+		}
+
+		function paint(v: number) {
+			root!.style.setProperty('--roadmap-fill', (v * 100).toFixed(2) + '%');
+			for (let i = 0; i < beats.length; i++) {
+				/* One-shot and never removed. The epsilon is for the last node: the
+				   ceiling lands on it as `from + 1 * (to - from)`, which floating
+				   point can leave an ULP short of `to` — and then the beat the trail
+				   visibly ends on is the one beat that never lights. A thousandth of
+				   the rail is sub-pixel. */
+				if ((pos[i] ?? 1) <= v + 0.001) beats[i]!.item.classList.add('is-lit');
+			}
+		}
+
+		function tick() {
+			latched = Math.max(latched, scrollFill());
+			const target = Math.min(ceiling(Date.now()), latched);
+			if (still.matches || Math.abs(target - shown) < 0.0008) {
+				shown = target;
+				paint(shown);
+				raf = 0;
+				return;
+			}
+			shown += (target - shown) * 0.14;
+			paint(shown);
+			raf = requestAnimationFrame(tick);
+		}
+
+		function kick() {
+			if (!raf) raf = requestAnimationFrame(tick);
+		}
+
+		/* ── Live text ──
+		   Re-derived from the same functions the server rendered with, so the two
+		   cannot disagree; written back only where the string actually changed, so a
+		   once-a-second clock is not a once-a-second reflow. */
+		const setText = (el: Element | null, s: string) => {
+			if (el && el.textContent !== s) el.textContent = s;
+		};
+
+		function refresh() {
+			const now = Date.now();
+			let live = 0;
+
+			for (const el of dated) {
+				const span = { start: el.dataset.start!, end: el.dataset.end! };
+				const state = stateOf(span, now);
+				/* Counted off tasks only — a live subtask inside a live task, or the
+				   band around it, is one thing happening, not three. */
+				if (state.status === 'live' && el.hasAttribute('data-task')) live++;
+
+				if (el.dataset.state !== state.status) {
+					el.classList.remove('is-past', 'is-live', 'is-upcoming');
+					el.classList.add(`is-${state.status}`);
+					el.dataset.state = state.status;
+				}
+
+				setText(el.querySelector('[data-word]'), state.word);
+				setText(el.querySelector('[data-remain]'), state.remaining);
+				el.querySelector<HTMLElement>('[data-meter]')?.style.setProperty('--p', state.meter);
+			}
+
+			root!.classList.toggle('has-live', live > 0);
+		}
+
+		/* Reveal latches by unobserving — a card that has arrived stays arrived. */
+		const seen = new IntersectionObserver(
+			(entries) => {
+				for (const entry of entries) {
+					if (!entry.isIntersecting) continue;
+					entry.target.classList.add('is-in');
+					seen.unobserve(entry.target);
+				}
+			},
+			{ rootMargin: '0px 0px -6% 0px', threshold: 0.08 }
+		);
+		for (const b of beats) seen.observe(b.item);
+
+		function relayout() {
+			measure();
+			kick();
+		}
+
+		window.addEventListener('scroll', kick, { passive: true });
+		window.addEventListener('resize', relayout, { passive: true });
+
+		/* Catches the reflow a late web font causes — the badges move, and a trail
+		   measured against where they used to be stops in the wrong place. */
+		if ('ResizeObserver' in window) new ResizeObserver(relayout).observe(root);
+
+		const clock = window.setInterval(() => {
+			if (document.hidden) return;
+			refresh();
+			kick();
+		}, 1000);
+
+		/* A tab left open for an hour comes back to a stale countdown. */
+		document.addEventListener('visibilitychange', () => {
+			if (!document.hidden) {
+				refresh();
+				kick();
+			}
+		});
+
+		/* View transitions swap the DOM out from under this. */
+		document.addEventListener('astro:before-swap', () => window.clearInterval(clock), { once: true });
+
+		measure();
+		refresh();
+		/* Start at zero so the first frames draw the trail in rather than revealing
+		   it already full. */
+		paint(0);
+		kick();
+	}
+
+	initRoadmap();
+	document.addEventListener('astro:page-load', initRoadmap);
+</script>

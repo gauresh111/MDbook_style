@@ -1,0 +1,21 @@
+---
+---
+<div class="story-section">
+  <slot />
+</div>
+
+<style>
+.story-section {
+  max-width: 980px;
+  margin: 4rem auto 6rem;
+  padding: 0 1.5rem;
+  overflow-x: hidden;
+}
+
+@media (max-width: 640px) {
+  .story-section {
+    margin: 2rem auto 4rem;
+    padding: 0 1rem;
+  }
+}
+</style>

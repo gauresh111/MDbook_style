@@ -1,0 +1,468 @@
+---
+/**
+ * A tutorial that advances one screen at a time, the way Canonical's own
+ * installer walkthrough does.
+ *
+ * Part 1 used to be two table rows pointing off-site, which meant the one part
+ * of Task 0 a student cannot recover from — wiping the wrong disk — was the
+ * only part this page didn't actually walk them through. Reading eighteen
+ * screenshots as one long scroll is no better: the student is in front of a
+ * real installer with one screen open, and the page should show them that
+ * screen and no other.
+ *
+ * The chrome, the rail and the nav are `not-content` so Starlight's markdown
+ * styles skip them; the slides deliberately are not, so prose written inside
+ * them in MDX looks like the prose everywhere else on the page.
+ *
+ * Nav is emitted `hidden` and revealed by the script. Without JavaScript the
+ * slides stay stacked and readable in order — which is the correct fallback for
+ * a set of instructions — rather than leaving a dead Next button on the page.
+ */
+interface Props {
+	/** Shown in the window's title bar. */
+	title?: string;
+	/** Prefixes the slide ids and names the localStorage key. */
+	id?: string;
+}
+
+const { title = 'Walkthrough', id = 'guide' } = Astro.props;
+---
+
+<div class="guide" data-guide data-guide-id={id}>
+	<div class="guide__chrome not-content">
+		<span class="guide__lights" aria-hidden="true"><i></i><i></i><i></i></span>
+		<span class="guide__name">{title}</span>
+		<span class="guide__counter" data-counter aria-live="polite"></span>
+	</div>
+
+	{/* Decorative: the counter above carries the same information as live text,
+	    and a second progressbar role would announce every step twice. */}
+	<div class="guide__rail not-content" data-rail hidden aria-hidden="true">
+		<span class="guide__rail-fill" data-rail-fill></span>
+	</div>
+
+	<div class="guide__viewport" data-viewport>
+		<slot />
+	</div>
+
+	<nav class="guide__nav not-content" data-nav hidden aria-label={`${title} steps`}>
+		<button type="button" class="guide__btn" data-prev>
+			<svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="15 18 9 12 15 6"></polyline></svg>
+			Previous
+		</button>
+
+		<ol class="guide__dots" data-dots></ol>
+
+		<button type="button" class="guide__btn guide__btn--next" data-next>
+			Next
+			<svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="9 18 15 12 9 6"></polyline></svg>
+		</button>
+	</nav>
+</div>
+
+<style>
+.guide {
+	margin: 1.5rem 0 2.25rem;
+	border: 1px solid var(--t-border);
+	border-radius: 0.75rem;
+	background: rgb(var(--t-surface-2-rgb));
+	overflow: hidden;
+}
+
+/* ── Title bar ── */
+.guide__chrome {
+	display: flex;
+	align-items: center;
+	gap: 0.6rem;
+	padding: 0.55rem 0.9rem;
+	border-block-end: 1px solid var(--t-border);
+	background: rgb(var(--t-surface-3-rgb));
+}
+
+/* Window lights, because this is a picture of an application the student is
+   about to be looking at — not a section of the page they are reading. */
+.guide__lights {
+	display: flex;
+	flex-shrink: 0;
+	gap: 0.3rem;
+}
+
+.guide__lights i {
+	inline-size: 0.55rem;
+	block-size: 0.55rem;
+	border-radius: 50%;
+	background: var(--t-border-strong);
+	opacity: 0.7;
+}
+
+.guide__name {
+	flex: 1;
+	min-inline-size: 0;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+	font-family: var(--t-font-heading);
+	font-size: 0.8rem;
+	font-weight: 600;
+	letter-spacing: 0.01em;
+	color: var(--t-text-strong);
+}
+
+.guide__counter {
+	flex-shrink: 0;
+	font-family: var(--t-font-mono);
+	font-size: 0.72rem;
+	font-variant-numeric: tabular-nums;
+	color: var(--t-text-faint);
+}
+
+/* ── Progress rail ── */
+.guide__rail {
+	block-size: 3px;
+	background: var(--t-border);
+}
+
+.guide__rail-fill {
+	display: block;
+	inline-size: 0;
+	block-size: 100%;
+	background: var(--t-accent);
+	transition: inline-size 0.3s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+/* ── Viewport ──
+   A floor rather than a fixed height: the short slides stop the footer jumping
+   up the page, the long ones are still allowed to be as long as they are. */
+.guide__viewport {
+	padding: 1.15rem 1.25rem 1.35rem;
+}
+
+.guide[data-ready] .guide__viewport {
+	min-block-size: 22rem;
+}
+
+/* Only the current slide, once the script has taken over. Slotted markup
+   belongs to the page's scope, so it has to be reached globally. */
+.guide[data-ready] :global([data-slide]:not(.is-current)) {
+	display: none;
+}
+
+.guide[data-ready] :global([data-slide]) {
+	animation: guide-in 0.28s ease both;
+}
+
+.guide[data-ready] :global([data-slide]:focus-visible) {
+	outline: none;
+}
+
+@keyframes guide-in {
+	from {
+		opacity: 0;
+		transform: translateY(0.4rem);
+	}
+}
+
+/* ── Footer nav ── */
+.guide__nav {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 0.75rem;
+	padding: 0.6rem 0.9rem;
+	border-block-start: 1px solid var(--t-border);
+	background: rgb(var(--t-surface-3-rgb));
+}
+
+.guide__btn {
+	display: inline-flex;
+	align-items: center;
+	gap: 0.3rem;
+	flex-shrink: 0;
+	padding: 0.35rem 0.7rem;
+	border: 1px solid var(--t-border);
+	border-radius: 0.4rem;
+	background: rgb(var(--t-surface-rgb));
+	font-family: var(--t-font-heading);
+	font-size: 0.78rem;
+	font-weight: 500;
+	color: var(--t-text);
+	cursor: pointer;
+	transition: border-color 0.15s ease, color 0.15s ease;
+}
+
+.guide__btn:hover:not(:disabled) {
+	border-color: var(--t-accent);
+	color: var(--t-accent);
+}
+
+/* Kept in place rather than removed at the ends — a control that vanishes
+   shifts the row under the reader's cursor mid-walkthrough. */
+.guide__btn:disabled {
+	opacity: 0.4;
+	cursor: default;
+}
+
+.guide__btn--next {
+	border-color: var(--t-accent);
+	background: var(--t-accent);
+	color: var(--t-on-accent);
+}
+
+.guide__btn--next:hover:not(:disabled) {
+	background: var(--t-accent-strong);
+	border-color: var(--t-accent-strong);
+	color: var(--t-on-accent);
+}
+
+/* ── Dots ── */
+.guide__dots {
+	display: flex;
+	flex-wrap: wrap;
+	justify-content: center;
+	gap: 0.3rem;
+	margin: 0;
+	padding: 0;
+	list-style: none;
+}
+
+/* The dots are built by the script, so they never carry Astro's scope class and
+   a plain `.guide__dot` rule would not match them. Reached through `:global`
+   from `.guide__dots`, which is in this template and is scoped — so the rules
+   still cannot leak past this component. */
+.guide__dots :global(.guide__dot) {
+	display: block;
+	inline-size: 0.5rem;
+	block-size: 0.5rem;
+	padding: 0;
+	border: 0;
+	border-radius: 50%;
+	background: var(--t-border-strong);
+	cursor: pointer;
+	transition: background 0.15s ease, transform 0.15s ease;
+}
+
+.guide__dots :global(.guide__dot:hover) {
+	background: var(--t-accent);
+}
+
+/* Half a rem of target is under any reasonable tap size, so the outline is
+   pushed out far enough to be seen around it. */
+.guide__dots :global(.guide__dot:focus-visible) {
+	outline: 2px solid var(--t-accent);
+	outline-offset: 3px;
+}
+
+/* Seen but not current stays tinted, so the row doubles as "how far in am I"
+   without the reader having to find the counter in the title bar. */
+.guide__dots :global(.guide__dot[data-seen]) {
+	background: rgba(var(--t-accent-rgb), 0.45);
+}
+
+.guide__dots :global(.guide__dot[aria-current='step']) {
+	background: var(--t-accent);
+	transform: scale(1.5);
+}
+
+@media (max-width: 30rem) {
+	.guide__nav {
+		flex-wrap: wrap;
+	}
+
+	.guide__dots {
+		order: 3;
+		flex-basis: 100%;
+	}
+}
+
+@media (prefers-reduced-motion: reduce) {
+	.guide__rail-fill {
+		transition: none;
+	}
+
+	.guide__dots :global(.guide__dot) {
+		transition: none;
+	}
+
+	.guide[data-ready] :global([data-slide]) {
+		animation: none;
+	}
+}
+</style>
+
+<script>
+	/**
+	 * One slide at a time, with the position kept in the URL so a mentor can
+	 * link a student straight at the step they are stuck on, and in
+	 * localStorage so coming back to the page lands where they left off — this
+	 * walkthrough is read across a reboot, not in one sitting.
+	 */
+	function initGuide(root: HTMLElement) {
+		const slides = Array.from(root.querySelectorAll<HTMLElement>('[data-slide]'));
+		if (slides.length < 2) return;
+
+		const key = root.dataset.guideId || 'guide';
+		const store = `kc:guide:${key}`;
+
+		const counter = root.querySelector<HTMLElement>('[data-counter]');
+		const rail = root.querySelector<HTMLElement>('[data-rail]');
+		const fill = root.querySelector<HTMLElement>('[data-rail-fill]');
+		const nav = root.querySelector<HTMLElement>('[data-nav]');
+		const dots = root.querySelector<HTMLElement>('[data-dots]');
+		const prev = root.querySelector<HTMLButtonElement>('[data-prev]');
+		const next = root.querySelector<HTMLButtonElement>('[data-next]');
+
+		const still =
+			typeof window.matchMedia === 'function' &&
+			window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+		/* The slide's own id and the deep-link hash are deliberately different
+		   strings. If `#ubuntu-step-6` matched an element, the browser would
+		   scroll to it natively — and it does that again after late-loading
+		   images reflow the page, which lands the reader below the title bar
+		   whatever this script does first. Matching nothing leaves the scroll
+		   entirely to `go()`. */
+		slides.forEach((slide, i) => {
+			slide.id = `${key}-slide-${i + 1}`;
+			slide.tabIndex = -1;
+			const num = slide.querySelector<HTMLElement>('[data-slide-num]');
+			if (num) num.textContent = `Step ${i + 1} of ${slides.length}`;
+		});
+
+		const dotButtons = slides.map((slide, i) => {
+			const label = slide.dataset.title || `Step ${i + 1}`;
+			const li = document.createElement('li');
+			const button = document.createElement('button');
+			button.type = 'button';
+			button.className = 'guide__dot';
+			button.title = `${i + 1}. ${label}`;
+			button.setAttribute('aria-label', `Step ${i + 1}: ${label}`);
+			button.addEventListener('click', () => go(i, true));
+			li.append(button);
+			dots?.append(li);
+			return button;
+		});
+
+		let at = -1;
+
+		function go(to: number, moveFocus: boolean) {
+			const i = Math.max(0, Math.min(slides.length - 1, to));
+			if (i === at) return;
+			at = i;
+
+			slides.forEach((slide, n) => {
+				slide.classList.toggle('is-current', n === i);
+				slide.setAttribute('aria-hidden', n === i ? 'false' : 'true');
+			});
+
+			dotButtons.forEach((dot, n) => {
+				if (n === i) dot.setAttribute('aria-current', 'step');
+				else dot.removeAttribute('aria-current');
+				dot.toggleAttribute('data-seen', n < i);
+			});
+
+			if (counter) counter.textContent = `${i + 1} / ${slides.length}`;
+			if (fill) fill.style.inlineSize = `${((i + 1) / slides.length) * 100}%`;
+
+			if (prev) prev.disabled = i === 0;
+			if (next) next.disabled = i === slides.length - 1;
+
+			try {
+				window.localStorage.setItem(store, String(i));
+			} catch {
+				/* Private browsing. The walkthrough still works, it just forgets. */
+			}
+
+			/* replaceState, not a hash assignment: twelve steps would otherwise
+			   put twelve entries in the history and trap the back button inside
+			   this one component. */
+			try {
+				window.history.replaceState(null, '', `#${key}-step-${i + 1}`);
+			} catch {
+				/* Some embeds block it. Navigation is unaffected. */
+			}
+
+			if (!moveFocus) return;
+
+			/* Long slides leave the reader below the top of the next one. Pull
+			   the window back into view, clear of Starlight's sticky header. */
+			const top = root.getBoundingClientRect().top;
+			if (top < 0) {
+				window.scrollTo({
+					top: window.scrollY + top - 84,
+					behavior: still ? 'auto' : 'smooth',
+				});
+			}
+			slides[i].focus({ preventScroll: true });
+		}
+
+		prev?.addEventListener('click', () => go(at - 1, true));
+		next?.addEventListener('click', () => go(at + 1, true));
+
+		/* Bound to the component, not the document: arrow keys belong to the
+		   page until the reader is actually inside the walkthrough. */
+		root.addEventListener('keydown', (event) => {
+			if (event.altKey || event.ctrlKey || event.metaKey) return;
+			if (event.key === 'ArrowRight') {
+				event.preventDefault();
+				go(at + 1, true);
+			} else if (event.key === 'ArrowLeft') {
+				event.preventDefault();
+				go(at - 1, true);
+			}
+		});
+
+		function fromHash(): number {
+			const match = /^#(.+)-step-(\d+)$/.exec(window.location.hash);
+			if (!match || match[1] !== key) return -1;
+			const n = Number(match[2]) - 1;
+			return n >= 0 && n < slides.length ? n : -1;
+		}
+
+		window.addEventListener('hashchange', () => {
+			const n = fromHash();
+			if (n >= 0) go(n, true);
+		});
+
+		root.dataset.ready = '1';
+		rail?.removeAttribute('hidden');
+		nav?.removeAttribute('hidden');
+
+		let start = fromHash();
+		const linked = start >= 0;
+
+		if (!linked) {
+			try {
+				const saved = Number(window.localStorage.getItem(store));
+				if (Number.isInteger(saved) && saved > 0 && saved < slides.length) start = saved;
+			} catch {
+				/* Ignore — start at the beginning. */
+			}
+		}
+
+		/* No focus move and no scroll on the first paint: landing on the page
+		   should not yank it, and a restored position should not either. */
+		go(Math.max(0, start), false);
+
+		/* A deep link is the exception: it is someone being sent to step 6, and
+		   the window has to be on screen for that to mean anything. Scrolled to
+		   the top of the window rather than the slide, so the counter and the
+		   rail come with it. */
+		if (linked) {
+			window.scrollTo({
+				top: window.scrollY + root.getBoundingClientRect().top - 84,
+				behavior: 'auto',
+			});
+		}
+	}
+
+	function initGuides() {
+		for (const root of document.querySelectorAll<HTMLElement>('[data-guide]')) {
+			if (root.dataset.guideInit) continue;
+			root.dataset.guideInit = '1';
+			initGuide(root);
+		}
+	}
+
+	initGuides();
+	document.addEventListener('astro:page-load', initGuides);
+</script>

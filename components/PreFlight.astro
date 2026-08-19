@@ -1,0 +1,473 @@
+---
+/**
+ * Three questions, asked before the student starts installing anything.
+ *
+ * The rules that matter most here — native install only, Ubuntu 22.04 only —
+ * are currently prose in a caution box, and a caution box is exactly what gets
+ * skimmed. Answering "a virtual machine" and being stopped is a different
+ * experience from reading "do not use a Virtual Machine" and carrying on; the
+ * cost of getting this wrong is measured in days.
+ *
+ * Every advice panel is in the HTML from the start, hidden, and the script only
+ * decides which ones apply. So the text is searchable and survives with the
+ * script dead — where the page falls back to the full guide below it, which is
+ * the same instruction set without the filtering.
+ */
+import site from 'virtual:mdbook-style/config';
+
+const questions = [
+	{
+		key: 'run',
+		legend: 'Where will Ubuntu 22.04 run?',
+		options: [
+			{ value: 'dual', label: 'Dual boot, alongside my current OS' },
+			{ value: 'fresh', label: 'On its own — this machine is being wiped or is already Linux-only' },
+			{ value: 'vm', label: 'In a virtual machine (VirtualBox, VMware, WSL)' },
+			{ value: 'have', label: "I'm already running Ubuntu 22.04" },
+		],
+	},
+	{
+		key: 'os',
+		legend: 'What is on the machine now?',
+		/* macOS is deliberately absent: it is not supported for this theme, so
+		   offering it as a choice would imply a path that does not exist. Said
+		   here instead, because a student on a Mac is precisely the one who needs
+		   to know, and an option list they cannot answer tells them nothing. */
+		note: 'macOS is not supported for this theme — you will need a Windows or Linux machine, or your institute’s lab machines.',
+		options: [
+			{ value: 'windows', label: 'Windows' },
+			{ value: 'linux', label: 'Linux (any version)' },
+		],
+	},
+	{
+		key: 'gpu',
+		legend: 'Which graphics does it have?',
+		options: [
+			{ value: 'nvidia', label: 'NVIDIA' },
+			{ value: 'integrated', label: 'Intel or AMD' },
+			{ value: 'unsure', label: 'Not sure' },
+		],
+	},
+];
+---
+
+<section class="preflight not-content">
+	<div class="preflight__head">
+		<h2 class="preflight__title">Before you start</h2>
+		<p class="preflight__sub">
+			Two choices on this page decide whether the rest of Task&nbsp;0 goes smoothly or eats your
+			week. Answer these three and you'll get the path that applies to your machine.
+		</p>
+	</div>
+
+	<form class="preflight__form" data-preflight>
+		{questions.map((q) => (
+			<fieldset class="preflight__q">
+				<legend class="preflight__legend">{q.legend}</legend>
+				{q.note && <p class="preflight__qnote">{q.note}</p>}
+				<div class="preflight__opts">
+					{q.options.map((opt) => (
+						<label class="preflight__opt">
+							<input type="radio" name={q.key} value={opt.value} data-answer={q.key} />
+							<span>{opt.label}</span>
+						</label>
+					))}
+				</div>
+			</fieldset>
+		))}
+	</form>
+
+	<p class="preflight__hint" data-hint>Answer all three to see your path.</p>
+
+	<div class="preflight__result" data-result hidden>
+		{/* ── Blocking ── */}
+		<div class="pf-card pf-card--stop" data-when-run="vm" hidden>
+			<p class="pf-card__label">Stop — this will not work</p>
+			<p>
+				A virtual machine cannot complete this theme, and the rule is not negotiable. Three
+				reasons, all of which you would hit later rather than now:
+			</p>
+			<ul>
+				<li>
+					Gazebo needs real GPU acceleration. Under a VM it either refuses to render or runs at a
+					few frames per second, which makes the navigation and manipulation tasks unworkable.
+				</li>
+				<li>
+					The auto-evaluation script inspects the system it runs on and flags an unsupported
+					environment, so your submission can fail even when your code is correct.
+				</li>
+				<li>
+					{site.brand.org} does not support VM setups. Nobody will be able to help you debug it.
+				</li>
+			</ul>
+			<p>
+				<strong>What to do instead:</strong> dual boot Ubuntu 22.04 alongside your current OS —
+				you keep everything you have and choose which system to start at boot. Change your first
+				answer to "Dual boot" for the steps.
+			</p>
+		</div>
+
+		<div class="pf-card" data-when-run="dual" data-when-os="windows" hidden>
+			<p class="pf-card__label">Dual booting with Windows</p>
+			<ul>
+				<li><strong>Back up first.</strong> Partitioning carries real risk of data loss.</li>
+				<li>
+					Free at least <strong>60 GB</strong>. ROS 2, Gazebo and the theme packages grow faster
+					than you expect across four tasks.
+				</li>
+				<li>
+					Turn off <strong>Fast Startup</strong> in Windows power settings. Left on, it leaves the
+					disk in a state the Ubuntu installer can misread.
+				</li>
+				<li>
+					Suspend <strong>BitLocker</strong> if it's on, and keep your recovery key somewhere
+					that isn't the machine you're partitioning.
+				</li>
+				<li>
+					Disable <strong>Secure Boot</strong> in the BIOS if the installer won't start — and
+					you'll need it off later anyway for NVIDIA's proprietary driver.
+				</li>
+			</ul>
+		</div>
+
+		<div class="pf-card" data-when-run="dual" data-when-os="linux" hidden>
+			<p class="pf-card__label">Dual booting with another Linux</p>
+			<p>
+				Straightforward, with one thing to watch: install the Ubuntu 22.04 bootloader where you
+				intend to, and expect to run <code>sudo update-grub</code> from whichever system owns GRUB
+				afterwards so both appear at boot.
+			</p>
+			<p>
+				If your current system is already Ubuntu, check the version before doing anything —
+				<code>lsb_release -a</code>. If it reports 22.04, you don't need to install anything;
+				change your first answer.
+			</p>
+		</div>
+
+		<div class="pf-card" data-when-run="fresh" hidden>
+			<p class="pf-card__label">Single-OS install</p>
+			<p>
+				The simplest path, and the one that gives Gazebo the most headroom. Back up anything you
+				need off the disk first — this erases it. Then follow the Ubuntu installer and choose to
+				use the entire disk.
+			</p>
+		</div>
+
+		<div class="pf-card pf-card--ok" data-when-run="have" hidden>
+			<p class="pf-card__label">Confirm the version, then skip ahead</p>
+			<p>
+				Run <code>lsb_release -a</code>. You need exactly <strong>22.04</strong> — 20.04 and 24.04
+				both ship the wrong ROS 2 distribution, and Humble cannot be installed on either from
+				packages.
+			</p>
+			<p>
+				If it says 22.04, skip Step&nbsp;1 on this page entirely and go straight to the ROS 2
+				Humble and Gazebo guide.
+			</p>
+		</div>
+
+		{/* ── Graphics ── */}
+		<div class="pf-card" data-when-gpu="nvidia" data-when-run="dual fresh have" hidden>
+			<p class="pf-card__label">NVIDIA — one extra step, and one thing to remember</p>
+			<ul>
+				<li>
+					After installing Ubuntu, open <strong>Software &amp; Updates → Additional Drivers</strong>
+					and pick the tested proprietary NVIDIA driver. The open-source <code>nouveau</code>
+					driver will not give Gazebo usable performance.
+				</li>
+				<li>
+					If Gazebo later opens to a black or empty window, log out and choose
+					<strong>Ubuntu on Xorg</strong> from the gear icon on the login screen. NVIDIA plus
+					Wayland is the single most common cause of that symptom.
+				</li>
+			</ul>
+		</div>
+
+		<div class="pf-card" data-when-gpu="unsure" hidden>
+			<p class="pf-card__label">Finding out which graphics you have</p>
+			<p>On Linux, run this — the line it prints names the vendor:</p>
+			<pre class="pf-card__cmd"><code>lspci | grep -i 'vga\|3d'</code></pre>
+			<p>
+				On Windows, open Task Manager → Performance, or run <code>dxdiag</code>. It only matters
+				because NVIDIA needs a driver step the others don't.
+			</p>
+		</div>
+
+		{/* ── The path ── */}
+		<div class="pf-card pf-card--path" data-when-run="dual fresh have" hidden>
+			<p class="pf-card__label">Your path through Task 0</p>
+			<ol>
+				<li data-path-ubuntu>Install Ubuntu 22.04 — Step 1 below</li>
+				<li>Install ROS 2 Humble and Gazebo Fortress — Step 2 below</li>
+				<li>Verify both, then generate and submit the result file</li>
+				<li>Attempt the quiz on the portal (team leader only, 3 attempts)</li>
+				<li>Set up the warehouse simulation</li>
+			</ol>
+		</div>
+	</div>
+</section>
+
+<style>
+.preflight {
+	margin: 1.75rem 0 2.5rem;
+	padding: 1.15rem 1.3rem 1.25rem;
+	border: 1px solid var(--t-border);
+	border-radius: 0.75rem;
+	background: rgb(var(--t-surface-2-rgb));
+}
+
+.preflight h2.preflight__title {
+	margin: 0;
+	padding: 0;
+	border: 0;
+	font-family: var(--t-font-heading);
+	font-size: 1.05rem;
+	font-weight: 600;
+	line-height: 1.4;
+	letter-spacing: normal;
+	color: var(--t-text-strong);
+}
+
+.preflight__sub {
+	margin: 0.4rem 0 0;
+	font-size: 0.87rem;
+	line-height: 1.6;
+	color: var(--t-text-muted);
+}
+
+/* ── Questions ── */
+.preflight__form {
+	display: grid;
+	gap: 1rem;
+	margin-block-start: 1.1rem;
+}
+
+.preflight__q {
+	margin: 0;
+	padding: 0;
+	border: 0;
+}
+
+.preflight__legend {
+	padding: 0;
+	margin-block-end: 0.45rem;
+	font-size: 0.85rem;
+	font-weight: 600;
+	color: var(--t-text-strong);
+}
+
+/* Sits between the question and its options, ruling one answer out before it is
+   looked for. Carries the warn palette rather than the alert one — it is a
+   constraint to know about, not a mistake already made. */
+.preflight__qnote {
+	margin: 0 0 0.5rem;
+	padding: 0.4rem 0.6rem;
+	border-inline-start: 2px solid var(--legend-warn-fg);
+	border-radius: 0.25rem;
+	background: var(--legend-warn-bg);
+	font-size: 0.79rem;
+	line-height: 1.55;
+	color: var(--legend-warn-fg);
+}
+
+.preflight__opts {
+	display: grid;
+	gap: 0.3rem;
+}
+
+.preflight__opt {
+	display: flex;
+	align-items: flex-start;
+	gap: 0.55rem;
+	padding: 0.42rem 0.6rem;
+	border: 1px solid transparent;
+	border-radius: 0.45rem;
+	font-size: 0.86rem;
+	line-height: 1.5;
+	color: var(--t-text);
+	cursor: pointer;
+}
+
+.preflight__opt:hover {
+	background: rgba(var(--t-ink-rgb), 0.04);
+}
+
+/* The chosen row carries a border rather than a fill, so a set of answers can
+   be read back at a glance without three coloured bands down the panel. */
+.preflight__opt:has(input:checked) {
+	border-color: var(--t-accent);
+	background: rgba(var(--t-accent-rgb), 0.08);
+	color: var(--t-text-strong);
+}
+
+.preflight__opt input {
+	flex-shrink: 0;
+	margin: 0.2rem 0 0;
+	accent-color: var(--t-accent);
+}
+
+.preflight__hint {
+	margin: 1rem 0 0;
+	font-family: var(--t-font-mono);
+	font-size: 0.74rem;
+	color: var(--t-text-faint);
+}
+
+/* ── Result ── */
+.preflight__result {
+	display: grid;
+	gap: 0.7rem;
+	margin-block-start: 1.1rem;
+}
+
+.pf-card {
+	padding: 0.85rem 1rem;
+	border: 1px solid var(--t-border);
+	border-inline-start: 3px solid var(--t-border-strong);
+	border-radius: 0.5rem;
+	background: rgb(var(--t-body-rgb));
+}
+
+.pf-card__label {
+	margin: 0 0 0.3rem;
+	font-family: var(--t-font-heading);
+	font-size: 0.88rem;
+	font-weight: 600;
+	color: var(--t-text-strong);
+}
+
+.pf-card p {
+	margin: 0.5rem 0 0;
+	font-size: 0.86rem;
+	line-height: 1.6;
+	color: var(--t-text-muted);
+}
+
+.pf-card ul,
+.pf-card ol {
+	margin: 0.5rem 0 0;
+	padding-inline-start: 1.25rem;
+}
+
+.pf-card li {
+	font-size: 0.86rem;
+	line-height: 1.6;
+	color: var(--t-text-muted);
+}
+
+.pf-card li + li {
+	margin-block-start: 0.3rem;
+}
+
+.pf-card strong {
+	color: var(--t-text-strong);
+}
+
+.pf-card code {
+	font-family: var(--t-font-mono);
+	font-size: 0.82em;
+	padding: 0.1em 0.35em;
+	border-radius: 0.25rem;
+	background: rgba(var(--t-ink-rgb), 0.07);
+	color: var(--t-text-strong);
+}
+
+.pf-card__cmd {
+	margin: 0.5rem 0 0;
+	padding: 0.55rem 0.75rem;
+	border: 1px solid var(--t-code-border);
+	border-radius: 8px;
+	background: var(--t-code-bg);
+	overflow-x: auto;
+}
+
+.pf-card__cmd code {
+	padding: 0;
+	background: none;
+	font-size: 0.8rem;
+	color: var(--t-code-text);
+}
+
+/* The three states worth colouring: a stop, a caveat, and a confirmation.
+   Everything else stays neutral so these three carry weight. */
+.pf-card--stop {
+	border-inline-start-color: var(--legend-alert-fg);
+	background: var(--legend-alert-bg);
+}
+
+.pf-card--stop .pf-card__label {
+	color: var(--legend-alert-fg);
+}
+
+.pf-card--warn {
+	border-inline-start-color: var(--legend-warn-fg);
+	background: var(--legend-warn-bg);
+}
+
+.pf-card--warn .pf-card__label {
+	color: var(--legend-warn-fg);
+}
+
+.pf-card--ok,
+.pf-card--path {
+	border-inline-start-color: var(--t-accent);
+}
+
+@media (max-width: 500px) {
+	.preflight {
+		padding-inline: 1rem;
+	}
+}
+</style>
+
+<script>
+	/* A panel shows when every `data-when-*` it declares matches the current
+	   answers. Multiple values in one attribute are alternatives, so
+	   `data-when-run="dual fresh have"` reads as "anything but the VM". Keeping
+	   the conditions in the markup means adding a panel needs no script change. */
+	function initPreFlight() {
+		for (const root of document.querySelectorAll<HTMLElement>('.preflight')) {
+			if (root.dataset.pfReady) continue;
+			root.dataset.pfReady = '1';
+
+			const form = root.querySelector<HTMLFormElement>('[data-preflight]');
+			const result = root.querySelector<HTMLElement>('[data-result]');
+			const hint = root.querySelector<HTMLElement>('[data-hint]');
+			if (!form || !result) continue;
+
+			const inputs = Array.from(form.querySelectorAll<HTMLInputElement>('[data-answer]'));
+			const keys = Array.from(new Set(inputs.map((i) => i.dataset.answer ?? '')));
+			const cards = Array.from(result.querySelectorAll<HTMLElement>('.pf-card'));
+
+			function apply() {
+				const answers: Record<string, string> = {};
+				for (const input of inputs) {
+					if (input.checked) answers[input.dataset.answer ?? ''] = input.value;
+				}
+
+				const answered = keys.every((k) => answers[k]);
+				result.hidden = !answered;
+				if (hint) hint.hidden = answered;
+				if (!answered) return;
+
+				for (const card of cards) {
+					card.hidden = !keys.every((key) => {
+						const want = card.dataset[`when${key[0].toUpperCase()}${key.slice(1)}`];
+						return want === undefined || want.split(' ').includes(answers[key]);
+					});
+				}
+
+				/* Already on 22.04 — the first line of the path is the one thing they
+				   don't have to do, and leaving it in invites them to redo it. */
+				const ubuntu = result.querySelector<HTMLElement>('[data-path-ubuntu]');
+				if (ubuntu) ubuntu.hidden = answers.run === 'have';
+			}
+
+			form.addEventListener('change', apply);
+			apply();
+		}
+	}
+
+	initPreFlight();
+	document.addEventListener('astro:page-load', initPreFlight);
+</script>

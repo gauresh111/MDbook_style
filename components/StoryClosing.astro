@@ -1,0 +1,71 @@
+---
+import { Image } from 'astro:assets';
+import type { ImageMetadata } from 'astro';
+
+interface Props {
+  statement: string;
+  cheer: string;
+  /* The illustration is the site's, not the theme's, so it arrives as an
+     imported asset from the page. Omitted, the block is text only. */
+  image?: ImageMetadata;
+  imageAlt?: string;
+}
+
+const { statement, cheer, image, imageAlt = 'Problem to solution journey' } = Astro.props;
+---
+
+<section class="closing-section reveal">
+  {image && <Image src={image} alt={imageAlt} class="closing-img" />}
+  <p class="closing-statement" set:html={statement} />
+  <p class="closing-cheer">{cheer}</p>
+</section>
+
+<style>
+.closing-section {
+  margin-top: 3rem;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: 1.5rem;
+}
+
+.closing-img {
+  width: 100%;
+  max-width: 600px;
+  height: auto;
+  border-radius: 1rem;
+}
+
+.closing-statement {
+  font-size: 1.1rem;
+  color: var(--t-text);
+  line-height: 1.75;
+  max-width: 580px;
+  margin: 0;
+}
+
+.closing-statement :global(strong) {
+  color: var(--t-text-strong);
+}
+
+.closing-cheer {
+  font-size: 1.3rem;
+  font-weight: 700;
+  background: linear-gradient(135deg, var(--t-border-strong), var(--t-accent));
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  margin: 0;
+}
+
+@media (max-width: 640px) {
+  .closing-statement {
+    font-size: 1rem;
+  }
+
+  .closing-cheer {
+    font-size: 1.1rem;
+  }
+}
+</style>

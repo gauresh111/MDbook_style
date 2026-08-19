@@ -1,0 +1,28 @@
+---
+---
+<div class="timeline-connector"></div>
+
+<style>
+/* Colours come from the theme tokens so the dot follows the active palette;
+   it used to be a hard-coded warm gradient in a style="" attribute, which
+   stayed brown in the light theme. */
+.timeline-connector {
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, var(--t-border-strong), var(--t-accent));
+  box-shadow: 0 0 10px rgba(var(--t-line-rgb), 0.55);
+  border: 2px solid rgba(var(--t-surface-rgb), 1);
+  flex-shrink: 0;
+  z-index: 10;
+  align-self: center;
+  margin: 0 auto;
+  display: block;
+}
+
+@media (max-width: 720px) {
+  .timeline-connector {
+    display: none !important;
+  }
+}
+</style>

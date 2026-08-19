@@ -1,0 +1,198 @@
+---
+/**
+ * Paste the error, get the fix.
+ *
+ * Both instruction pages tell students to expect errors and debug them, then
+ * offer nothing to debug with — which is why the same handful of failures
+ * arrives on the forum every year. This is that handful, filterable by the text
+ * the student already has in front of them.
+ *
+ * Entries are real `<details>` elements, so the list still works with the
+ * script dead: it degrades to a plain expandable list, which is what the
+ * troubleshooting section would have been anyway.
+ */
+import site from 'virtual:mdbook-style/config';
+
+interface Props {
+	/** Shown in the filter box. Worth naming the stage — the two pages have
+	 *  different failure sets and the placeholder is the only cue which is which. */
+	placeholder?: string;
+}
+
+const { placeholder = 'Paste your error message, or type a keyword…' } = Astro.props;
+---
+
+<div class="fixes not-content" data-fixes>
+	<div class="fixes__search">
+		<svg class="fixes__search-icon" viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="7"></circle><line x1="16.5" y1="16.5" x2="21" y2="21"></line></svg>
+		<input
+			type="search"
+			class="fixes__input"
+			placeholder={placeholder}
+			aria-label="Filter troubleshooting entries"
+			autocomplete="off"
+			spellcheck="false"
+			data-filter
+		/>
+	</div>
+
+	<p class="fixes__status" role="status" aria-live="polite" data-status></p>
+
+	<div class="fixes__list">
+		<slot />
+	</div>
+
+	<p class="fixes__empty" hidden data-empty>
+		Nothing here matches that. Post the full error on the
+		<a href={site.links.forum} target="_blank" rel="noopener">portal forum</a> — include
+		the command you ran and the complete output, and mention that you checked this list.
+	</p>
+</div>
+
+<style>
+.fixes {
+	margin: 1.25rem 0 2rem;
+}
+
+/* ── Filter ── */
+.fixes__search {
+	position: relative;
+	display: flex;
+	align-items: center;
+}
+
+.fixes__search-icon {
+	position: absolute;
+	inset-inline-start: 0.75rem;
+	pointer-events: none;
+	color: var(--t-text-faint);
+}
+
+.fixes__input {
+	inline-size: 100%;
+	padding: 0.55rem 0.8rem 0.55rem 2.15rem;
+	border: 1px solid var(--t-border);
+	border-radius: 0.5rem;
+	background: rgb(var(--t-body-rgb));
+	font-family: inherit;
+	font-size: 0.88rem;
+	color: var(--t-text);
+}
+
+.fixes__input::placeholder {
+	color: var(--t-text-faint);
+}
+
+.fixes__input:focus-visible {
+	outline: 2px solid var(--t-accent);
+	outline-offset: 1px;
+	border-color: var(--t-accent);
+}
+
+.fixes__status {
+	margin: 0.5rem 0 0;
+	min-block-size: 1.1rem;
+	font-family: var(--t-font-mono);
+	font-size: 0.72rem;
+	color: var(--t-text-faint);
+}
+
+.fixes__list {
+	display: grid;
+	gap: 0.4rem;
+	margin-block-start: 0.35rem;
+}
+
+.fixes__empty {
+	margin: 0.9rem 0 0;
+	padding: 0.8rem 0.95rem;
+	border: 1px solid var(--t-border);
+	border-radius: 0.5rem;
+	background: rgb(var(--t-surface-2-rgb));
+	font-size: 0.85rem;
+	line-height: 1.6;
+	color: var(--t-text-muted);
+}
+</style>
+
+<script>
+	/* Every token has to match somewhere in the entry, so pasting a whole error
+	   line narrows rather than widens — the opposite of what an any-token match
+	   does, and the paste is the main way in here.
+
+	   Matching is against the entry's full text including its collapsed body,
+	   which is where the command that failed usually appears. */
+	function initFixes() {
+		for (const root of document.querySelectorAll<HTMLElement>('[data-fixes]')) {
+			if (root.dataset.fixesReady) continue;
+			root.dataset.fixesReady = '1';
+
+			const input = root.querySelector<HTMLInputElement>('[data-filter]');
+			const status = root.querySelector<HTMLElement>('[data-status]');
+			const empty = root.querySelector<HTMLElement>('[data-empty]');
+			const entries = Array.from(root.querySelectorAll<HTMLDetailsElement>('[data-fix]')).map(
+				(el) => ({
+					el,
+					/* Punctuation dropped on both sides so `E: Unable to locate` still
+					   matches an entry that wrote it without the colon. */
+					text: ((el.dataset.keywords ?? '') + ' ' + (el.textContent ?? ''))
+						.toLowerCase()
+						.replace(/[^a-z0-9]+/g, ' '),
+				})
+			);
+			if (!input || !entries.length) continue;
+
+			function apply() {
+				const query = (input!.value ?? '').toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
+				const tokens = query.split(' ').filter((t) => t.length > 1);
+
+				if (!tokens.length) {
+					for (const entry of entries) {
+						entry.el.hidden = false;
+						entry.el.open = false;
+					}
+					if (status) status.textContent = `${entries.length} known issues`;
+					if (empty) empty.hidden = true;
+					return;
+				}
+
+				let shown = 0;
+				for (const entry of entries) {
+					const hit = tokens.every((t) => entry.text.includes(t));
+					entry.el.hidden = !hit;
+					/* Opened on a match: the student is holding an error, not browsing,
+					   so the fix should already be on screen. Only when the filter has
+					   narrowed to a handful — expanding twelve at once is no help. */
+					entry.el.open = hit && shown < 3;
+					if (hit) shown++;
+				}
+				if (status) status.textContent = `${shown} of ${entries.length} match`;
+				if (empty) empty.hidden = shown > 0;
+			}
+
+			input.addEventListener('input', apply);
+			apply();
+		}
+	}
+
+	/* A "Didn't work?" link from a verify block lands on a closed entry, which
+	   otherwise looks like a jump to nothing. */
+	function openFromHash() {
+		const id = decodeURIComponent(window.location.hash.slice(1));
+		if (!id) return;
+		const target = document.getElementById(id);
+		if (!target || !target.hasAttribute('data-fix')) return;
+		(target as HTMLDetailsElement).open = true;
+		target.hidden = false;
+		target.scrollIntoView({ block: 'center', behavior: 'smooth' });
+	}
+
+	function boot() {
+		initFixes();
+		openFromHash();
+	}
+
+	boot();
+	window.addEventListener('hashchange', openFromHash);
+	document.addEventListener('astro:page-load', boot);
+</script>

@@ -1,0 +1,501 @@
+---
+/**
+ * One task, hanging off the rail on the side given by `align`.
+ *
+ * Dates are arguments, and both are required — a beat that cannot say when it
+ * opens and closes has no business on a timeline, so a missing or malformed one
+ * stops the build with the task named. See requireSpan in ./roadmap-dates.
+ *
+ * The task number is the rail node: the sequence is already the spine of this
+ * timeline, so a separate dot beside the number would say it twice.
+ *
+ * Subtasks go in the slot, after the description:
+ *
+ *   <RoadmapTask n="5" title="Progress & Submission" start="2026-01-13" end="2026-02-09">
+ *     Two overlapping runs close out Stage 2.
+ *
+ *     <RoadmapSubtask n="5a" title="Progress Task" start="2026-01-13" end="2026-01-27" />
+ *     <RoadmapSubtask n="5b" title="Demo & Code" start="2026-01-13" end="2026-02-09" />
+ *   </RoadmapTask>
+ *
+ * The breathing and flare animations come from keyframes declared in
+ * Roadmap.astro — Astro leaves keyframe names global, and this component is only
+ * ever used inside that one.
+ */
+import {
+	crossesYear,
+	formatDay,
+	requireSpan,
+	requireText,
+	stateOf,
+	weeksLabel,
+} from './roadmap-dates';
+
+interface Props {
+	/** Shown in the rail badge. A string, so "5" and "12" both work. */
+	n: string | number;
+	title: string;
+	/** ISO YYYY-MM-DD, first day inclusive. Required. */
+	start: string;
+	/** ISO YYYY-MM-DD, last day inclusive — the participant's deadline. Required. */
+	end: string;
+	align?: 'left' | 'right';
+}
+
+const { n, title, start, end, align = 'left' } = Astro.props as Partial<Props>;
+
+/* Named in every error this file can throw. With nine tasks on the page, "a task
+   is missing a date" is not something anyone can act on. */
+const label = n === undefined || n === null || `${n}`.trim() === ''
+	? '<RoadmapTask> (no `n`)'
+	: `Task ${n}`;
+
+const num = requireText(n === undefined ? undefined : `${n}`, 'n', '<RoadmapTask>');
+const name = requireText(title, 'title', label);
+const span = requireSpan(start, end, label);
+
+const state = stateOf(span, Date.now());
+const showYearOnStart = crossesYear(span);
+---
+
+<div
+	class:list={['task', `task--${align}`, `is-${state.status}`]}
+	data-beat
+	data-task
+	data-when
+	data-state={state.status}
+	data-start={span.start}
+	data-end={span.end}
+>
+	<span class="task__badge" data-node aria-hidden="true">{num}</span>
+	<span class="task__stub" aria-hidden="true"></span>
+
+	<article class="task__card">
+		<div class="task__head">
+			<h3 class="task__title">
+				{/* The number lives on the rail, which is decoration — assistive tech
+				    and any viewport that drops the rail still need it here. */}
+				<span class="task__sr">Task {num} — </span>{name}
+			</h3>
+			<span class="task__dur">{weeksLabel(span)}</span>
+		</div>
+
+		<p class="task__range">
+			<time datetime={span.start}>{formatDay(span.start, showYearOnStart)}</time>
+			<span aria-hidden="true"> – </span>
+			<time datetime={span.end}>{formatDay(span.end)}</time>
+		</p>
+
+		<div class="task__body"><slot /></div>
+
+		<div class="task__foot">
+			<span class="task__chip">
+				<span class="task__chip-dot" aria-hidden="true"></span>
+				<span data-word>{state.word}</span>
+			</span>
+			<span class="task__remain" data-remain>{state.remaining}</span>
+		</div>
+
+		{/* Only ever visible on the open task, where "how far through are we" is a
+		    live question rather than a settled one. */}
+		<span class="task__meter" data-meter style={`--p: ${state.meter}`} aria-hidden="true"></span>
+	</article>
+</div>
+
+<style>
+/* Width is exactly half the rail's container less the gap, and must stay that
+   way: the badge and stub are positioned from this box's inner edge, so they
+   only sit on the rail while that edge does. Any cap here — a max-inline-size,
+   say — shrinks the box on wide screens and drags the badge off the line with
+   it. The cap belongs on the card inside instead. */
+.task {
+	position: relative;
+	z-index: 1;
+	inline-size: calc(50% - var(--rail-gap));
+	margin-block-end: 1.5rem;
+}
+
+.task--left {
+	align-self: flex-start;
+}
+
+/* Pulled up so the columns interleave instead of each task taking a full row of
+   its own — that stacking is what leaves diagonal gaps down the middle. */
+.task--right {
+	align-self: flex-end;
+	margin-block-start: calc(-1 * var(--task-pull));
+}
+
+/* ── Badge ──
+   Three steps, and the step is the whole signal: solid is behind us, outlined
+   and glowing is now, hairline is ahead. The number never leaves — swapping it
+   for a tick would spend the one place the task's identity is stated. */
+.task__badge {
+	position: absolute;
+	inset-block-start: var(--badge-top);
+	z-index: 3;
+	display: grid;
+	place-items: center;
+	inline-size: var(--badge);
+	block-size: var(--badge);
+	/* Stated, not inherited: the live badge takes a 2px border, and on
+	   content-box that would grow it and nudge the badge off the rail. */
+	box-sizing: border-box;
+	border-radius: 50%;
+	/* Opaque, so the rail passes behind the number rather than through it. */
+	background: rgb(var(--t-body-rgb));
+	border: 1px solid var(--t-border);
+	font-family: var(--t-font-mono);
+	font-size: 0.82rem;
+	font-variant-numeric: tabular-nums;
+	color: var(--t-text-muted);
+	transition: color 0.3s ease, border-color 0.3s ease, background-color 0.3s ease;
+}
+
+.task.is-past .task__badge {
+	background: var(--rm-past);
+	border-color: var(--rm-past);
+	color: var(--t-on-accent);
+}
+
+.task.is-live .task__badge {
+	border-color: var(--rm-live);
+	border-width: 2px;
+	color: var(--rm-live);
+	font-weight: 600;
+}
+
+/* The open task's badge keeps breathing. Its own layer, not a box-shadow on the
+   badge itself: the one-shot flare below is a box-shadow, and one property
+   cannot carry a permanent animation and a transient one at once. */
+.task__badge::after {
+	content: '';
+	position: absolute;
+	inset: -2px;
+	border-radius: 50%;
+	pointer-events: none;
+}
+
+.task.is-live .task__badge::after {
+	animation: rm-breathe 2.4s ease-in-out infinite;
+}
+
+/* Fires once, when the trail reaches this node. `is-lit` latches, so the flare
+   cannot replay on the way back up. */
+.task.is-lit .task__badge {
+	animation: rm-flare 0.75s ease-out;
+}
+
+/* ── Stub joining badge to card ── */
+.task__stub {
+	position: absolute;
+	inset-block-start: calc(var(--badge-top) + var(--badge) / 2);
+	z-index: 1;
+	inline-size: calc(var(--rail-gap) - var(--badge) / 2);
+	block-size: 1px;
+	background: var(--t-border);
+	transition: background-color 0.3s ease;
+}
+
+.task.is-past .task__stub {
+	background: var(--rm-past);
+}
+
+.task.is-live .task__stub {
+	background: var(--rm-live);
+}
+
+/* Once capped, a left card would sit against the outer margin with a gap between
+   it and its stub — push it back against the rail. */
+.task--left .task__card {
+	margin-inline-start: auto;
+}
+
+.task--left .task__badge {
+	inset-inline-end: calc(-1 * var(--rail-gap) - var(--badge) / 2);
+}
+.task--left .task__stub {
+	inset-inline-end: calc(var(--badge) / 2 - var(--rail-gap));
+}
+
+.task--right .task__badge {
+	inset-inline-start: calc(-1 * var(--rail-gap) - var(--badge) / 2);
+}
+.task--right .task__stub {
+	inset-inline-start: calc(var(--badge) / 2 - var(--rail-gap));
+}
+
+/* ── Card ──
+   A hairline box, no fill and no shadow: nine of these run down the page, and
+   anything heavier turns the timeline into a wall of panels. */
+.task__card {
+	position: relative;
+	z-index: 2;
+	/* Caps the line length on wide screens. Left-hand cards then hug their inner
+	   edge (above) so the stub still meets them and the run stays gathered around
+	   the rail rather than splayed to the margins. */
+	max-inline-size: 24rem;
+	padding: 0.85rem 1.1rem 0.9rem;
+	border: 1px solid var(--t-border);
+	border-radius: 0.6rem;
+	background: rgb(var(--t-body-rgb));
+	transition: border-color 0.3s ease, background-color 0.3s ease;
+}
+
+/* Softer than the badge: a closed task is settled, and eight solid accent
+   outlines down the page would leave nothing for the live one to stand against. */
+.task.is-past .task__card {
+	border-color: rgba(var(--rm-past-rgb), 0.38);
+}
+
+.task.is-live .task__card {
+	border-color: var(--rm-live);
+	background: rgba(var(--rm-live-rgb), 0.07);
+}
+
+/* After the state rules deliberately, and only where it adds something: hover
+   must not grey down a card the calendar has already coloured. */
+.task.is-upcoming:hover .task__card {
+	border-color: var(--t-border-strong);
+}
+
+.task__head {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: baseline;
+	justify-content: space-between;
+	gap: 0.15rem 0.75rem;
+}
+
+.task__title {
+	margin: 0;
+	font-family: var(--t-font-heading);
+	font-size: 1rem;
+	font-weight: 600;
+	line-height: 1.35;
+	color: var(--t-text-strong);
+}
+
+.task__sr {
+	position: absolute;
+	inline-size: 1px;
+	block-size: 1px;
+	overflow: hidden;
+	clip-path: inset(50%);
+	white-space: nowrap;
+}
+
+.task__dur {
+	flex-shrink: 0;
+	font-family: var(--t-font-mono);
+	font-size: 0.72rem;
+	white-space: nowrap;
+	color: var(--t-text-faint);
+}
+
+.task__range {
+	margin: 0.3rem 0 0;
+	font-family: var(--t-font-mono);
+	font-size: 0.78rem;
+	font-variant-numeric: tabular-nums;
+	color: var(--t-text);
+}
+
+.task.is-live .task__range {
+	color: var(--rm-live);
+}
+
+/* Direct children only. A blanket `:global(p)` would outrank the subtask
+   component's own paragraph styles — same class count, plus a type selector —
+   and restyle every row nested inside this card. */
+.task__body > :global(p) {
+	margin: 0.45rem 0 0;
+	font-size: 0.88rem;
+	line-height: 1.6;
+	color: var(--t-text-muted);
+}
+
+/* ── Foot: the state, and the one number this page exists to give ── */
+.task__foot {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: baseline;
+	justify-content: space-between;
+	gap: 0.2rem 0.6rem;
+	margin-block-start: 0.7rem;
+	padding-block-start: 0.55rem;
+	border-block-start: 1px solid var(--t-border);
+}
+
+.task__chip {
+	display: inline-flex;
+	align-items: center;
+	gap: 0.35rem;
+	font-size: 0.72rem;
+	font-weight: 600;
+	letter-spacing: 0.04em;
+	color: var(--rm-next);
+}
+
+.task__chip-dot {
+	inline-size: 0.4rem;
+	block-size: 0.4rem;
+	border-radius: 50%;
+	background: var(--t-border-strong);
+}
+
+.task.is-past .task__chip {
+	color: var(--rm-past);
+}
+.task.is-past .task__chip-dot {
+	background: var(--rm-past);
+}
+
+.task.is-live .task__chip {
+	color: var(--rm-live);
+}
+.task.is-live .task__chip-dot {
+	background: var(--rm-live);
+	animation: rm-breathe 2.4s ease-in-out infinite;
+}
+
+.task__remain {
+	font-family: var(--t-font-mono);
+	font-size: 0.72rem;
+	font-variant-numeric: tabular-nums;
+	white-space: nowrap;
+	color: var(--t-text-faint);
+}
+
+.task.is-live .task__remain {
+	font-weight: 600;
+	color: var(--rm-live);
+}
+
+/* ── Progress meter ── */
+.task__meter {
+	display: none;
+	position: relative;
+	margin-block-start: 0.6rem;
+	block-size: 2px;
+	border-radius: 2px;
+	background: var(--t-border);
+	overflow: hidden;
+}
+
+.task.is-live .task__meter {
+	display: block;
+}
+
+.task__meter::before {
+	content: '';
+	position: absolute;
+	inset-block: 0;
+	inset-inline-start: 0;
+	/* A ready-made percentage from the script, for the same reason the rail's
+	   gradient stop is one. */
+	inline-size: var(--p, 0%);
+	background: var(--rm-live);
+	transition: inline-size 0.4s ease;
+}
+
+/* ── Scroll reveal ──
+   Gated on scripting being available, so a browser that will never run the
+   observer never hides the content in the first place.
+
+   It moves the *card*, never the task box: the badge is a sibling of the card
+   and the container's script measures badge positions off the rail to know where
+   the trail must stop. A transform on the task would move the badge with it and
+   every measurement taken before the reveal would be wrong. Opacity is safe on
+   the badge — it changes no geometry. */
+@media (scripting: enabled) {
+	.task__card {
+		opacity: 0;
+		transition: opacity 0.55s ease, translate 0.55s cubic-bezier(0.22, 1, 0.36, 1),
+			border-color 0.3s ease, background-color 0.3s ease;
+	}
+
+	.task__badge,
+	.task__stub {
+		opacity: 0;
+	}
+
+	.task--left .task__card {
+		translate: -1.25rem 0;
+	}
+	.task--right .task__card {
+		translate: 1.25rem 0;
+	}
+
+	.task.is-in .task__card {
+		opacity: 1;
+		translate: 0 0;
+	}
+
+	.task.is-in .task__badge,
+	.task.is-in .task__stub {
+		opacity: 1;
+		transition: opacity 0.45s ease, color 0.3s ease, border-color 0.3s ease,
+			background-color 0.3s ease;
+	}
+}
+
+/* One column, rail on the left: the badge sits on the line and the stub is
+   redundant once the card and the rail share an edge. */
+@media (max-width: 720px) {
+	.task,
+	.task--left,
+	.task--right {
+		align-self: stretch;
+		inline-size: 100%;
+		margin-block: 0 0.85rem;
+		padding-inline-start: calc(var(--badge) + 1rem);
+	}
+
+	.task__card,
+	.task--left .task__card {
+		max-inline-size: none;
+		margin-inline-start: 0;
+	}
+
+	.task--left .task__badge,
+	.task--right .task__badge {
+		inset-inline: 0 auto;
+	}
+
+	.task__stub {
+		display: none;
+	}
+
+	/* Both columns collapse into one, so both slide in from the same side. */
+	@media (scripting: enabled) {
+		.task--left .task__card,
+		.task--right .task__card {
+			translate: 0 0.9rem;
+		}
+	}
+}
+
+/* Last, and every selector carries a `.task` ancestor, so these beat the reveal
+   rules on specificity as well as order — those target `.task--left .task__card`,
+   and a bare `.task__card` reset would lose and leave every card sitting offset
+   until the observer fired. Nothing here is load-bearing: a task's state is
+   carried by the colour of its badge and the text in its foot, both already
+   correct in the HTML. */
+@media (prefers-reduced-motion: reduce) {
+	.task .task__card,
+	.task .task__badge,
+	.task .task__stub,
+	.task .task__meter::before {
+		opacity: 1;
+		translate: none;
+		transition: none;
+	}
+
+	.task.is-live .task__badge::after,
+	.task.is-live .task__chip-dot,
+	.task.is-lit .task__badge {
+		animation: none;
+	}
+}
+</style>

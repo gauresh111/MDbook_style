@@ -1,0 +1,108 @@
+---
+interface Challenge {
+  text: string;
+}
+
+interface Props {
+  challenges: Challenge[];
+}
+
+const { challenges } = Astro.props;
+---
+
+<section class="challenges-section reveal">
+  <span class="challenges-badge">Key Challenges</span>
+  <ul class="challenges-grid">
+    {challenges.map(({ text }, i) => (
+      <li class="challenge-item">
+        <span class="challenge-num">{String(i + 1).padStart(2, '0')}</span>
+        <span class="challenge-text">{text}</span>
+      </li>
+    ))}
+  </ul>
+</section>
+
+<style>
+.challenges-section {
+  margin-top: 3rem;
+  border: 1px solid var(--t-border);
+  border-radius: 1.25rem;
+  padding: 2rem;
+  background: rgba(var(--t-raise-rgb), 0.30);
+  text-align: center;
+}
+
+.challenges-badge {
+  display: inline-block;
+  background: linear-gradient(135deg, #f59e0b, #ef4444);
+  color: #fff;
+  font-size: 1rem;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  padding: 0.5rem 1.4rem;
+  border-radius: 999px;
+  margin-bottom: 1.5rem;
+}
+
+.challenges-grid {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1rem;
+}
+
+.challenge-item {
+  padding: 1.25rem;
+  border-radius: 0.75rem;
+  background: rgba(var(--t-raise-rgb), 0.40);
+  border: 1px solid var(--t-border);
+  transition: border-color 0.2s, background 0.2s;
+  display: flex;
+  align-items: flex-start;
+  gap: 0.85rem;
+  text-align: left;
+}
+
+.challenge-item:hover {
+  border-color: rgba(245, 158, 11, 0.3);
+  background: rgba(245, 158, 11, 0.04);
+}
+
+.challenge-num {
+  font-size: 1.3rem;
+  font-weight: 800;
+  color: rgba(245, 158, 11, 0.4);
+  line-height: 1;
+  flex-shrink: 0;
+  font-variant-numeric: tabular-nums;
+  padding-top: 0.15rem;
+  transition: color 0.2s;
+}
+
+.challenge-item:hover .challenge-num {
+  color: rgba(245, 158, 11, 0.8);
+}
+
+.challenge-text {
+  font-size: 1rem;
+  color: var(--t-text);
+  line-height: 1.65;
+}
+
+@media (max-width: 640px) {
+  .challenges-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .challenges-section {
+    padding: 1.25rem;
+  }
+
+  .challenge-text {
+    font-size: 0.95rem;
+  }
+}
+</style>

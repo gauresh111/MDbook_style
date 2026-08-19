@@ -1,0 +1,534 @@
+---
+/**
+ * Where you are in a multi-step setup.
+ *
+ * Two modes, one component because they render the same bar and read the same
+ * store:
+ *   - checklist (`group` + `steps`) — the panel at the top of an instructions
+ *     page, one row per step, each linking to its own heading.
+ *   - summary (`summary`) — a group-per-row meter for the Task 0 introduction,
+ *     so the hub page can say how much of the task is actually left.
+ *
+ * The panel sits beside the prose rather than wrapping it: the headings stay
+ * plain markdown, which keeps them in Starlight's table of contents and keeps
+ * the code blocks in the Expressive Code pipeline. Ticking a step from the
+ * place you did it is what `Step` and `Verify` are for — they write to the same
+ * store and this panel follows.
+ */
+import { GROUPS, hrefFor } from '../internal/progress';
+
+interface StepItem {
+	id: string;
+	label: string;
+	/** Heading id to jump to. Dropped at runtime if no such heading exists. */
+	anchor?: string;
+}
+
+interface Props {
+	group?: string;
+	steps?: StepItem[];
+	summary?: boolean;
+	title?: string;
+}
+
+const { group, steps = [], summary = false, title } = Astro.props;
+
+const groupKeys = Object.keys(GROUPS);
+const heading = title ?? (summary ? 'Your progress' : (group && GROUPS[group]?.label) || 'Progress');
+---
+
+{
+	summary ? (
+		<section class="tracker tracker--summary not-content" data-summary>
+			<h2 class="tracker__head">{heading}</h2>
+			<ul class="tracker__groups">
+				{groupKeys.map((key) => (
+					<li class="tracker__group" data-group-row={key}>
+						<span
+							class="tracker__ring"
+							role="progressbar"
+							aria-valuemin="0"
+							aria-valuemax="100"
+							aria-valuenow="0"
+							aria-label={`${GROUPS[key].label} progress`}
+							data-bar
+						>
+							{/* Rotated so the arc grows from twelve o'clock rather than
+							    three, which is where a reader expects a dial to start. */}
+							<svg viewBox="0 0 44 44" aria-hidden="true">
+								<circle class="tracker__ring-track" cx="22" cy="22" r="18" />
+								<circle class="tracker__ring-fill" cx="22" cy="22" r="18" data-ring />
+							</svg>
+							<span class="tracker__ring-num" data-ring-num>0</span>
+						</span>
+
+						<span class="tracker__group-text">
+							<a class="tracker__group-name" href={hrefFor(key)}>
+								{GROUPS[key].label}
+							</a>
+							<span class="tracker__count" data-count>— of —</span>
+						</span>
+					</li>
+				))}
+			</ul>
+			<p class="tracker__note">
+				Ticked as you work through the steps. Kept in this browser only — nothing here is sent
+				to the portal, and it has no bearing on your marks.
+			</p>
+		</section>
+	) : (
+		<section class="tracker not-content" data-group={group}>
+			<div class="tracker__top">
+				<h2 class="tracker__head">{heading}</h2>
+				<span class="tracker__count" data-count>
+					0 of {steps.length} done
+				</span>
+			</div>
+
+			<span
+				class="tracker__bar"
+				role="progressbar"
+				aria-valuemin="0"
+				aria-valuemax="100"
+				aria-valuenow="0"
+				aria-label={`${heading} progress`}
+				data-bar
+			>
+				<span class="tracker__fill" data-fill></span>
+			</span>
+
+			<ul class="tracker__steps">
+				{steps.map((step, i) => (
+					<li class="tracker__step">
+						<input
+							type="checkbox"
+							class="tracker__box"
+							id={`track-${group}-${step.id}`}
+							data-step-id={step.id}
+						/>
+						<label class="tracker__label" for={`track-${group}-${step.id}`}>
+							<span class="tracker__n">{i + 1}</span>
+							{step.label}
+						</label>
+						{step.anchor && (
+							<a class="tracker__jump" href={`#${step.anchor}`} data-jump={step.anchor}>
+								Go
+							</a>
+						)}
+					</li>
+				))}
+			</ul>
+
+			<p class="tracker__note">
+				<span data-reset-wrap>
+					Kept in this browser only. <button type="button" class="tracker__reset" data-reset>Reset</button>
+				</span>
+			</p>
+		</section>
+	)
+}
+
+<style>
+.tracker {
+	margin: 1.75rem 0 2.5rem;
+	padding: 1.1rem 1.25rem 1rem;
+	border: 1px solid var(--t-border);
+	border-radius: 0.75rem;
+	background: rgb(var(--t-surface-2-rgb));
+}
+
+.tracker__top {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: baseline;
+	justify-content: space-between;
+	gap: 0.25rem 0.75rem;
+}
+
+/* An h2 for the document outline, but not at h2's display size — this is a
+   panel label sitting above body copy, not a section break. The border-bottom
+   android.css puts on every markdown h2 has to go with it.
+   Qualified by tag and ancestor to clear `:root .sl-markdown-content h2`,
+   which the panel renders inside and which outranks a lone class. */
+.tracker h2.tracker__head {
+	margin: 0;
+	padding: 0;
+	border: 0;
+	font-family: var(--t-font-heading);
+	font-size: 1rem;
+	font-weight: 600;
+	line-height: 1.4;
+	letter-spacing: normal;
+	color: var(--t-text-strong);
+}
+
+.tracker__count {
+	flex-shrink: 0;
+	font-family: var(--t-font-mono);
+	font-size: 0.78rem;
+	font-variant-numeric: tabular-nums;
+	color: var(--t-text-faint);
+}
+
+/* ── Bar ── */
+.tracker__bar {
+	display: block;
+	block-size: 4px;
+	margin-block: 0.7rem 0.9rem;
+	border-radius: 4px;
+	background: var(--t-border);
+	overflow: hidden;
+}
+
+.tracker__fill {
+	display: block;
+	inline-size: 0;
+	block-size: 100%;
+	border-radius: 4px;
+	background: var(--t-accent);
+	transition: inline-size 0.25s ease;
+}
+
+/* ── Checklist ── */
+.tracker__steps {
+	margin: 0;
+	padding: 0;
+	list-style: none;
+	display: grid;
+	gap: 0.1rem;
+}
+
+.tracker__step {
+	display: flex;
+	align-items: center;
+	gap: 0.6rem;
+	padding: 0.28rem 0.35rem;
+	margin-inline: -0.35rem;
+	border-radius: 0.4rem;
+}
+
+.tracker__step:hover {
+	background: rgba(var(--t-ink-rgb), 0.04);
+}
+
+.tracker__box {
+	flex-shrink: 0;
+	inline-size: 1rem;
+	block-size: 1rem;
+	margin: 0;
+	accent-color: var(--t-accent);
+	cursor: pointer;
+}
+
+.tracker__label {
+	flex: 1;
+	display: flex;
+	align-items: baseline;
+	gap: 0.55rem;
+	font-size: 0.9rem;
+	line-height: 1.45;
+	color: var(--t-text);
+	cursor: pointer;
+}
+
+/* Struck through rather than hidden or greyed to nothing: the list is also a
+   map of the page, so a finished step still has to be findable on it. */
+.tracker__box:checked + .tracker__label {
+	color: var(--t-text-faint);
+	text-decoration: line-through;
+	text-decoration-color: var(--t-border-strong);
+}
+
+.tracker__n {
+	flex-shrink: 0;
+	inline-size: 1.15rem;
+	font-family: var(--t-font-mono);
+	font-size: 0.75rem;
+	font-variant-numeric: tabular-nums;
+	color: var(--t-text-faint);
+}
+
+.tracker__jump {
+	flex-shrink: 0;
+	font-family: var(--t-font-mono);
+	font-size: 0.7rem;
+	letter-spacing: 0.04em;
+	text-transform: uppercase;
+	text-decoration: none;
+	color: var(--t-link);
+	opacity: 0;
+	transition: opacity 0.15s ease;
+}
+
+/* Revealed on hover or keyboard focus — nine of these showing at once is
+   nine competing calls to action down the side of the panel. */
+.tracker__step:hover .tracker__jump,
+.tracker__jump:focus-visible {
+	opacity: 1;
+}
+
+.tracker__note {
+	margin: 0.85rem 0 0;
+	font-size: 0.75rem;
+	line-height: 1.5;
+	color: var(--t-text-faint);
+}
+
+.tracker__reset {
+	padding: 0;
+	border: 0;
+	background: none;
+	font: inherit;
+	color: var(--t-link);
+	cursor: pointer;
+	text-decoration: underline;
+}
+
+/* ── Summary mode ── */
+.tracker__groups {
+	margin: 1rem 0 0;
+	padding: 0;
+	list-style: none;
+	display: grid;
+	gap: 1rem;
+}
+
+.tracker__group {
+	display: flex;
+	align-items: center;
+	gap: 0.85rem;
+}
+
+.tracker__group-text {
+	display: grid;
+	gap: 0.1rem;
+}
+
+.tracker__group-name {
+	font-size: 0.95rem;
+	font-weight: 500;
+	text-decoration: none;
+	color: var(--t-link);
+}
+
+.tracker__group-name:hover {
+	text-decoration: underline;
+}
+
+/* ── Ring ──
+   A dial rather than a bar: two of these sit side by side on the hub page and
+   the shape reads as a state at a glance, where two thin bars read as a form. */
+.tracker__ring {
+	position: relative;
+	flex-shrink: 0;
+	display: grid;
+	place-items: center;
+	inline-size: 2.75rem;
+	block-size: 2.75rem;
+}
+
+.tracker__ring svg {
+	position: absolute;
+	inset: 0;
+	inline-size: 100%;
+	block-size: 100%;
+	rotate: -90deg;
+}
+
+.tracker__ring circle {
+	fill: none;
+	stroke-width: 3;
+}
+
+.tracker__ring-track {
+	stroke: var(--t-border);
+}
+
+/* Offset starts at the full circumference — a complete gap — and the script
+   winds it back. Set here rather than inline so an unscripted page shows an
+   empty ring instead of a full one. */
+.tracker__ring-fill {
+	stroke: var(--t-accent);
+	stroke-linecap: round;
+	stroke-dasharray: 113.1;
+	stroke-dashoffset: 113.1;
+	transition: stroke-dashoffset 0.6s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.tracker__ring-num {
+	position: relative;
+	font-family: var(--t-font-mono);
+	font-size: 0.85rem;
+	font-variant-numeric: tabular-nums;
+	color: var(--t-text-strong);
+}
+
+/* Complete: the ring and its number go green together, so "finished" is one
+   signal rather than a number the reader has to compare against a total. */
+.tracker__group.is-done .tracker__ring-fill {
+	stroke: var(--t-ok-fg);
+}
+
+.tracker__group.is-done .tracker__ring-num {
+	color: var(--t-ok-fg);
+}
+
+@media (prefers-reduced-motion: reduce) {
+	.tracker__fill,
+	.tracker__jump,
+	.tracker__ring-fill {
+		transition: none;
+	}
+}
+</style>
+
+<script>
+	import { isDone, setDone, countFor, totalFor, recordTotal, onChange, GROUPS } from '../internal/progress';
+
+	/* Must match the r=18 circle in the markup: 2πr, the length of one full
+	   turn, which is what the dash offset is measured in. */
+	const RING = 2 * Math.PI * 18;
+
+	const still =
+		typeof window.matchMedia === 'function' &&
+		window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+	/**
+	 * Counts a number up to its new value instead of snapping to it. Small
+	 * thing, but it is what makes ticking a step feel like progress rather than
+	 * a form field changing — and it is the only place the page tells you that
+	 * something happened somewhere else on it.
+	 *
+	 * The previous value is kept on the element: reading it back off the text
+	 * would break the moment the format around the number changes.
+	 */
+	function countTo(el: HTMLElement | null, to: number, fmt: (n: number) => string) {
+		if (!el) return;
+		const from = Number(el.dataset.at ?? '0') || 0;
+		el.dataset.at = String(to);
+
+		if (still || from === to) {
+			el.textContent = fmt(to);
+			return;
+		}
+
+		const started = performance.now();
+		const step = (now: number) => {
+			const t = Math.min(1, (now - started) / 420);
+			const eased = 1 - Math.pow(1 - t, 3);
+			el.textContent = fmt(Math.round(from + (to - from) * eased));
+			if (t < 1) requestAnimationFrame(step);
+		};
+		requestAnimationFrame(step);
+	}
+
+	function paint(bar: HTMLElement | null, done: number, total: number) {
+		const pct = total > 0 ? Math.round((done / total) * 100) : 0;
+
+		const fill = bar?.querySelector<HTMLElement>('[data-fill]');
+		if (fill) fill.style.inlineSize = pct + '%';
+
+		const ring = bar?.querySelector<SVGCircleElement>('[data-ring]');
+		if (ring) ring.style.strokeDashoffset = String(RING * (1 - pct / 100));
+
+		bar?.setAttribute('aria-valuenow', String(pct));
+	}
+
+	function initChecklist(root: HTMLElement) {
+		const group = root.dataset.group;
+		if (!group) return;
+
+		const boxes = Array.from(root.querySelectorAll<HTMLInputElement>('[data-step-id]'));
+		const count = root.querySelector<HTMLElement>('[data-count]');
+		const bar = root.querySelector<HTMLElement>('[data-bar]');
+
+		/* The page is the authority on how many steps it has — tell the store,
+		   so the summary meter on the introduction stops relying on its own
+		   hardcoded fallback the moment a student lands here. */
+		recordTotal(group, boxes.length);
+
+		function render() {
+			let done = 0;
+			for (const box of boxes) {
+				const on = isDone(`${group}/${box.dataset.stepId}`);
+				box.checked = on;
+				if (on) done++;
+			}
+			countTo(count, done, (n) => `${n} of ${boxes.length} done`);
+			paint(bar, done, boxes.length);
+		}
+
+		for (const box of boxes) {
+			box.addEventListener('change', () => {
+				setDone(`${group}/${box.dataset.stepId}`, box.checked);
+			});
+		}
+
+		/* A jump link to a heading that isn't on the page scrolls nowhere and
+		   looks broken, so drop the link and keep the row. Guards against a
+		   heading being retitled without its anchor prop following. */
+		for (const jump of root.querySelectorAll<HTMLAnchorElement>('[data-jump]')) {
+			if (!document.getElementById(jump.dataset.jump ?? '')) jump.remove();
+		}
+
+		const reset = root.querySelector<HTMLButtonElement>('[data-reset]');
+		if (reset) {
+			/* Two clicks, no dialog: `confirm()` is unreliable inside the portal's
+			   iframe, and wiping a half-finished checklist by accident is exactly
+			   the annoyance this panel exists to prevent. */
+			let armed = false;
+			reset.addEventListener('click', () => {
+				if (!armed) {
+					armed = true;
+					reset.textContent = 'Sure?';
+					window.setTimeout(() => {
+						armed = false;
+						reset.textContent = 'Reset';
+					}, 4000);
+					return;
+				}
+				armed = false;
+				reset.textContent = 'Reset';
+				for (const box of boxes) setDone(`${group}/${box.dataset.stepId}`, false);
+			});
+		}
+
+		onChange(render, root);
+		render();
+	}
+
+	function initSummary(root: HTMLElement) {
+		function render() {
+			for (const key of Object.keys(GROUPS)) {
+				const row = root.querySelector<HTMLElement>(`[data-group-row="${key}"]`);
+				if (!row) continue;
+
+				const done = countFor(key);
+				const total = totalFor(key);
+
+				countTo(row.querySelector<HTMLElement>('[data-ring-num]'), done, String);
+				countTo(
+					row.querySelector<HTMLElement>('[data-count]'),
+					done,
+					(n) => `${n} of ${total} step${total === 1 ? '' : 's'}`
+				);
+				paint(row.querySelector<HTMLElement>('[data-bar]'), done, total);
+				row.classList.toggle('is-done', total > 0 && done >= total);
+			}
+		}
+		onChange(render, root);
+		render();
+	}
+
+	function initTrackers() {
+		for (const root of document.querySelectorAll<HTMLElement>('.tracker')) {
+			if (root.dataset.trackerReady) continue;
+			root.dataset.trackerReady = '1';
+			if (root.hasAttribute('data-summary')) initSummary(root);
+			else initChecklist(root);
+		}
+	}
+
+	initTrackers();
+	document.addEventListener('astro:page-load', initTrackers);
+</script>

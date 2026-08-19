@@ -1,0 +1,746 @@
+---
+/**
+ * The two ways a correct Task 0 still scores zero: the wrong filename, and a
+ * result file that records a failure nobody read before uploading.
+ *
+ * Both are cheap to catch here and expensive to catch after the deadline. The
+ * grading is binary, so a mistyped name costs the whole 80-mark component.
+ *
+ * On the inspector: it is deliberately descriptive rather than authoritative.
+ * The auto-evaluation tool owns the result format and the portal owns the
+ * verdict, so this reports what the file contains and flags values that read
+ * as failures — it never claims a submission will pass. Anything stricter
+ * would eventually tell a student their valid file is broken, which is worse
+ * than telling them nothing.
+ */
+import site from 'virtual:mdbook-style/config';
+
+interface Props {
+	year?: string | number;
+	theme?: string;
+	task?: string | number;
+}
+
+const { year = 2025, theme = 'KC', task = 0 } = Astro.props;
+const glob = `result-${year}-${theme}-${task}-*.json`;
+---
+
+<section class="subcheck not-content" data-subcheck data-theme-code={theme} data-glob={glob}>
+	{/* ── 1. Filename ── */}
+	<div class="subcheck__block">
+		<h3 class="subcheck__title">
+			<span class="subcheck__n">1</span> Build your filename
+		</h3>
+		<p class="subcheck__lede">
+			The portal expects exactly <code>{theme}#&lt;team_id&gt;.json</code>. Type your team ID and
+			copy the result — no need to type the punctuation yourself.
+		</p>
+
+		<div class="subcheck__field">
+			<label class="subcheck__label" for="subcheck-team">Team ID</label>
+			<input
+				type="text"
+				id="subcheck-team"
+				class="subcheck__input"
+				inputmode="numeric"
+				autocomplete="off"
+				placeholder="1455"
+				aria-describedby="subcheck-team-note"
+				data-team
+			/>
+		</div>
+
+		<p class="subcheck__note" id="subcheck-team-note" data-team-note></p>
+
+		<div class="subcheck__out" data-name-out hidden>
+			<div class="subcheck__copyrow">
+				<code class="subcheck__mono" data-filename></code>
+				<button type="button" class="subcheck__copy" data-copy="filename">Copy</button>
+			</div>
+			<p class="subcheck__sub">Or rename it in the terminal, without typing the date:</p>
+			<div class="subcheck__copyrow subcheck__copyrow--cmd">
+				<code class="subcheck__mono" data-rename></code>
+				<button type="button" class="subcheck__copy" data-copy="rename">Copy</button>
+			</div>
+		</div>
+	</div>
+
+	{/* ── 2. Inspector ── */}
+	<div class="subcheck__block">
+		<h3 class="subcheck__title">
+			<span class="subcheck__n">2</span> Read your result file before you upload it
+		</h3>
+
+		{/* Stated up front, before the drop zone rather than in a footnote under
+		    it. A box you can drop a file onto looks like an upload, and a student
+		    who believes they have submitted here will not submit anywhere else. */}
+		<p class="subcheck__local">
+			<svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="11" width="18" height="10" rx="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg>
+			This is not the upload. Your file stays on your computer, and nothing here is sent to
+			{site.brand.org} — you still submit on the portal.
+		</p>
+
+		<p class="subcheck__lede">
+			So use it as a rehearsal. A file recording a failed check is still a perfectly valid file:
+			the portal accepts it and marks it zero. Far better to find that out now than in October.
+		</p>
+
+		<div class="subcheck__drop" data-drop>
+			<input
+				type="file"
+				id="subcheck-file"
+				class="subcheck__file"
+				accept=".json,application/json"
+				data-file
+			/>
+			<label class="subcheck__filebtn" for="subcheck-file">Choose your .json file</label>
+			<span class="subcheck__droptext">or drag it here, or paste the contents below</span>
+		</div>
+
+		<textarea
+			class="subcheck__paste"
+			rows="4"
+			placeholder="Paste the contents of your result-…json here"
+			aria-label="Paste result file contents"
+			spellcheck="false"
+			data-paste></textarea>
+
+		<p class="subcheck__privacy">
+			Read in your browser with no network involved — you can do this with the Wi-Fi off.
+		</p>
+
+		<div class="subcheck__verdict" data-verdict hidden>
+			<p class="subcheck__verdict-line" data-verdict-line></p>
+			<ul class="subcheck__flags" data-flags hidden></ul>
+			<details class="subcheck__dump" data-dump hidden>
+				<summary>Everything the file reports</summary>
+				<div class="subcheck__rows" data-rows></div>
+			</details>
+		</div>
+	</div>
+</section>
+
+<style>
+.subcheck {
+	display: grid;
+	gap: 1.1rem;
+	margin: 1.75rem 0 2.5rem;
+}
+
+.subcheck__block {
+	padding: 1.05rem 1.2rem 1.15rem;
+	border: 1px solid var(--t-border);
+	border-radius: 0.75rem;
+	background: rgb(var(--t-surface-2-rgb));
+}
+
+.subcheck h3.subcheck__title {
+	display: flex;
+	align-items: center;
+	gap: 0.55rem;
+	margin: 0;
+	font-family: var(--t-font-heading);
+	font-size: 0.95rem;
+	font-weight: 600;
+	line-height: 1.4;
+	color: var(--t-text-strong);
+}
+
+.subcheck__n {
+	display: grid;
+	place-items: center;
+	flex-shrink: 0;
+	inline-size: 1.35rem;
+	block-size: 1.35rem;
+	border-radius: 50%;
+	background: var(--t-accent);
+	color: var(--t-on-accent);
+	font-family: var(--t-font-mono);
+	font-size: 0.75rem;
+}
+
+.subcheck__lede {
+	margin: 0.45rem 0 0;
+	font-size: 0.86rem;
+	line-height: 1.6;
+	color: var(--t-text-muted);
+}
+
+/* Carries the warn palette, not the alert one: this is a thing to understand
+   before acting, not a mistake that has already happened. */
+.subcheck__local {
+	display: flex;
+	align-items: flex-start;
+	gap: 0.45rem;
+	margin: 0.6rem 0 0;
+	padding: 0.5rem 0.7rem;
+	border: 1px solid var(--legend-warn-border);
+	border-radius: 0.45rem;
+	background: var(--legend-warn-bg);
+	font-size: 0.82rem;
+	line-height: 1.55;
+	color: var(--legend-warn-fg);
+}
+
+.subcheck__local svg {
+	flex-shrink: 0;
+	margin-block-start: 0.2rem;
+}
+
+.subcheck code {
+	font-family: var(--t-font-mono);
+	font-size: 0.82em;
+	padding: 0.1em 0.35em;
+	border-radius: 0.25rem;
+	background: rgba(var(--t-ink-rgb), 0.07);
+	color: var(--t-text-strong);
+}
+
+/* ── Filename ── */
+.subcheck__field {
+	display: flex;
+	align-items: center;
+	gap: 0.6rem;
+	margin-block-start: 0.85rem;
+}
+
+.subcheck__label {
+	font-size: 0.82rem;
+	font-weight: 500;
+	color: var(--t-text);
+}
+
+.subcheck__input {
+	inline-size: 8rem;
+	padding: 0.4rem 0.6rem;
+	border: 1px solid var(--t-border);
+	border-radius: 0.4rem;
+	background: rgb(var(--t-body-rgb));
+	font-family: var(--t-font-mono);
+	font-size: 0.85rem;
+	color: var(--t-text);
+}
+
+.subcheck__input:focus-visible {
+	outline: 2px solid var(--t-accent);
+	outline-offset: 1px;
+	border-color: var(--t-accent);
+}
+
+.subcheck__note {
+	margin: 0.45rem 0 0;
+	min-block-size: 1rem;
+	font-size: 0.78rem;
+	line-height: 1.5;
+	color: var(--legend-warn-fg);
+}
+
+.subcheck__note:empty {
+	display: none;
+}
+
+.subcheck__out {
+	margin-block-start: 0.8rem;
+}
+
+.subcheck__copyrow {
+	display: flex;
+	align-items: center;
+	gap: 0.6rem;
+	padding: 0.5rem 0.6rem 0.5rem 0.75rem;
+	border: 1px solid var(--t-code-border);
+	border-radius: 8px;
+	background: var(--t-code-bg);
+}
+
+.subcheck__copyrow--cmd {
+	margin-block-start: 0.3rem;
+}
+
+/* Overrides the shared inline-code chip above: inside the dark block it needs
+   the code foreground and no fill of its own. */
+.subcheck .subcheck__mono {
+	flex: 1;
+	min-inline-size: 0;
+	padding: 0;
+	background: none;
+	font-size: 0.82rem;
+	color: var(--t-code-text);
+	overflow-x: auto;
+	white-space: pre;
+}
+
+.subcheck__copy {
+	flex-shrink: 0;
+	padding: 0.22rem 0.6rem;
+	border: 1px solid var(--t-border-strong);
+	border-radius: 0.35rem;
+	background: transparent;
+	font-family: var(--t-font-mono);
+	font-size: 0.72rem;
+	color: var(--t-code-text);
+	cursor: pointer;
+}
+
+.subcheck__copy:hover {
+	border-color: var(--t-accent);
+	color: var(--t-accent);
+}
+
+.subcheck__sub {
+	margin: 0.7rem 0 0;
+	font-size: 0.78rem;
+	color: var(--t-text-faint);
+}
+
+/* ── Inspector ── */
+.subcheck__drop {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: 0.6rem 0.8rem;
+	margin-block-start: 0.85rem;
+	padding: 0.8rem 0.9rem;
+	border: 1px dashed var(--t-border-strong);
+	border-radius: 0.5rem;
+}
+
+.subcheck__drop.is-over {
+	border-color: var(--t-accent);
+	background: rgba(var(--t-accent-rgb), 0.08);
+}
+
+/* Hidden but focusable — the styled label is the visible control, and removing
+   the input from the tab order would make it keyboard-unreachable. */
+.subcheck__file {
+	position: absolute;
+	inline-size: 1px;
+	block-size: 1px;
+	opacity: 0;
+}
+
+.subcheck__filebtn {
+	padding: 0.35rem 0.75rem;
+	border: 1px solid var(--t-accent);
+	border-radius: 0.4rem;
+	font-size: 0.82rem;
+	font-weight: 500;
+	color: var(--t-accent);
+	cursor: pointer;
+}
+
+.subcheck__file:focus-visible + .subcheck__filebtn {
+	outline: 2px solid var(--t-accent);
+	outline-offset: 2px;
+}
+
+.subcheck__droptext {
+	font-size: 0.8rem;
+	color: var(--t-text-faint);
+}
+
+.subcheck__paste {
+	inline-size: 100%;
+	margin-block-start: 0.6rem;
+	padding: 0.55rem 0.7rem;
+	border: 1px solid var(--t-border);
+	border-radius: 0.45rem;
+	background: rgb(var(--t-body-rgb));
+	font-family: var(--t-font-mono);
+	font-size: 0.78rem;
+	line-height: 1.5;
+	color: var(--t-text);
+	resize: vertical;
+}
+
+.subcheck__paste:focus-visible {
+	outline: 2px solid var(--t-accent);
+	outline-offset: 1px;
+	border-color: var(--t-accent);
+}
+
+.subcheck__privacy {
+	margin: 0.55rem 0 0;
+	font-size: 0.75rem;
+	line-height: 1.5;
+	color: var(--t-text-faint);
+}
+
+.subcheck__verdict {
+	margin-block-start: 0.9rem;
+	padding: 0.8rem 0.9rem;
+	border: 1px solid var(--t-border);
+	border-inline-start: 3px solid var(--t-border-strong);
+	border-radius: 0.5rem;
+	background: rgb(var(--t-body-rgb));
+}
+
+.subcheck__verdict-line {
+	margin: 0;
+	font-size: 0.86rem;
+	line-height: 1.6;
+	color: var(--t-text-muted);
+}
+
+.subcheck__verdict.is-ok {
+	border-inline-start-color: var(--t-ok-fg);
+	background: var(--t-ok-bg);
+}
+
+.subcheck__verdict.is-ok .subcheck__verdict-line {
+	color: var(--t-ok-fg);
+}
+
+.subcheck__verdict.is-warn {
+	border-inline-start-color: var(--legend-warn-fg);
+	background: var(--legend-warn-bg);
+}
+
+.subcheck__verdict.is-warn .subcheck__verdict-line {
+	color: var(--legend-warn-fg);
+}
+
+.subcheck__verdict.is-bad {
+	border-inline-start-color: var(--legend-alert-fg);
+	background: var(--legend-alert-bg);
+}
+
+.subcheck__verdict.is-bad .subcheck__verdict-line {
+	color: var(--legend-alert-fg);
+}
+
+.subcheck__flags {
+	margin: 0.6rem 0 0;
+	padding-inline-start: 1.1rem;
+}
+
+.subcheck__flags li {
+	font-family: var(--t-font-mono);
+	font-size: 0.76rem;
+	line-height: 1.65;
+	color: var(--t-text);
+	overflow-wrap: anywhere;
+}
+
+.subcheck__dump {
+	margin-block-start: 0.7rem;
+	font-size: 0.8rem;
+}
+
+.subcheck__dump summary {
+	cursor: pointer;
+	color: var(--t-link);
+}
+
+.subcheck__rows {
+	display: grid;
+	gap: 0.1rem;
+	margin-block-start: 0.5rem;
+	max-block-size: 18rem;
+	overflow-y: auto;
+	font-family: var(--t-font-mono);
+	font-size: 0.74rem;
+}
+
+.subcheck__row {
+	display: grid;
+	grid-template-columns: minmax(0, 1fr) minmax(0, 1.2fr);
+	gap: 0.75rem;
+	padding: 0.2rem 0;
+	border-block-end: 1px solid var(--t-border);
+}
+
+.subcheck__row span:first-child {
+	color: var(--t-text-faint);
+	overflow-wrap: anywhere;
+}
+
+.subcheck__row span:last-child {
+	color: var(--t-text);
+	overflow-wrap: anywhere;
+}
+
+.subcheck__row.is-flagged span:last-child {
+	color: var(--legend-alert-fg);
+}
+
+@media (max-width: 500px) {
+	.subcheck__field {
+		flex-wrap: wrap;
+	}
+
+	.subcheck__input {
+		inline-size: 100%;
+	}
+}
+</style>
+
+<script>
+	/* ── Filename ────────────────────────────────────────────────────────────
+	   Students paste in what they think the answer is, which is usually the
+	   whole thing — `KC#1455.json` — so the field strips the parts it is going
+	   to add back rather than rejecting them. It says what it stripped: silently
+	   fixing the input teaches nothing about what the portal wants. */
+	function cleanTeamId(raw: string, code: string) {
+		let id = raw.trim();
+		const notes: string[] = [];
+
+		const before = id;
+		id = id.replace(/\.json$/i, '').replace(new RegExp(`^${code}\\s*#?\\s*`, 'i'), '').replace(/^#/, '').trim();
+		if (id !== before) notes.push(`Dropped the parts that get added for you — just the ID is enough.`);
+
+		if (/[^A-Za-z0-9]/.test(id)) {
+			notes.push('A team ID has no spaces or punctuation in it. Check it on the portal.');
+			id = id.replace(/[^A-Za-z0-9]/g, '');
+		}
+
+		return { id, notes };
+	}
+
+	/* Clipboard access is not guaranteed inside the portal's iframe — the API
+	   needs a permission the parent frame has to delegate. So: try it, fall back
+	   to the legacy command, and if both are refused select the text so Ctrl+C
+	   still works. A copy button that silently does nothing is worse than none. */
+	async function copyText(text: string, node: HTMLElement, button: HTMLButtonElement) {
+		const done = (label: string) => {
+			const original = 'Copy';
+			button.textContent = label;
+			window.setTimeout(() => (button.textContent = original), 1600);
+		};
+
+		try {
+			await navigator.clipboard.writeText(text);
+			done('Copied');
+			return;
+		} catch {
+			/* fall through */
+		}
+
+		try {
+			const range = document.createRange();
+			range.selectNodeContents(node);
+			const sel = window.getSelection();
+			sel?.removeAllRanges();
+			sel?.addRange(range);
+			if (document.execCommand('copy')) {
+				sel?.removeAllRanges();
+				done('Copied');
+				return;
+			}
+			done('Press Ctrl+C');
+		} catch {
+			done('Select and copy');
+		}
+	}
+
+	/* ── Inspector ───────────────────────────────────────────────────────── */
+	const MAX_ROWS = 250;
+
+	function flatten(value: unknown, path = '', out: { path: string; value: string }[] = []) {
+		if (out.length >= MAX_ROWS) return out;
+
+		if (value !== null && typeof value === 'object') {
+			const entries = Array.isArray(value)
+				? value.map((v, i) => [String(i), v] as const)
+				: Object.entries(value as Record<string, unknown>);
+			if (!entries.length) out.push({ path: path || '(root)', value: Array.isArray(value) ? '[]' : '{}' });
+			for (const [key, child] of entries) {
+				flatten(child, path ? `${path}.${key}` : key, out);
+				if (out.length >= MAX_ROWS) break;
+			}
+			return out;
+		}
+
+		out.push({ path: path || '(root)', value: value === undefined ? '' : String(value) });
+		return out;
+	}
+
+	/* Two classes of signal, kept apart on purpose. A value that says "failed"
+	   is a finding; a value that is merely empty is a maybe, and calling those
+	   the same thing would bury the first in a list of the second. */
+	const FAIL_WORD = /\b(fail|failed|failure|error|unsupported|not\s?found|no\s?such|missing|denied|unavailable)\b/i;
+
+	/* `false` only counts against the file when the key was asserting something
+	   positive. A result file recording `is_vm: false` or `errors: false` is
+	   reporting good news, and flagging that would send a student off to fix a
+	   working install — the one failure mode this panel must not have. */
+	const POSITIVE_KEY = /(installed|success|ok|pass|found|valid|present|available|correct|works|ready|detected|supported)/i;
+
+	function classify(value: string, path: string): 'fail' | 'empty' | null {
+		const v = value.trim();
+		if (v === '' || v === 'null' || v === 'undefined' || v === '[]' || v === '{}') return 'empty';
+		if (v.toLowerCase() === 'false') return POSITIVE_KEY.test(path) ? 'fail' : 'empty';
+		if (FAIL_WORD.test(v)) return 'fail';
+		return null;
+	}
+
+	function initSubCheck() {
+		for (const root of document.querySelectorAll<HTMLElement>('[data-subcheck]')) {
+			if (root.dataset.subReady) continue;
+			root.dataset.subReady = '1';
+
+			const code = root.dataset.themeCode ?? 'KC';
+			const glob = root.dataset.glob ?? '';
+
+			/* ── 1 ── */
+			const team = root.querySelector<HTMLInputElement>('[data-team]');
+			const teamNote = root.querySelector<HTMLElement>('[data-team-note]');
+			const nameOut = root.querySelector<HTMLElement>('[data-name-out]');
+			const filename = root.querySelector<HTMLElement>('[data-filename]');
+			const rename = root.querySelector<HTMLElement>('[data-rename]');
+
+			function renderName() {
+				if (!team || !nameOut) return;
+				const { id, notes } = cleanTeamId(team.value, code);
+				if (teamNote) teamNote.textContent = notes.join(' ');
+				nameOut.hidden = !id;
+				if (!id) return;
+				const name = `${code}#${id}.json`;
+				if (filename) filename.textContent = name;
+				if (rename) rename.textContent = `mv ${glob} '${name}'`;
+			}
+
+			team?.addEventListener('input', renderName);
+			renderName();
+
+			for (const button of root.querySelectorAll<HTMLButtonElement>('[data-copy]')) {
+				button.addEventListener('click', () => {
+					const target = button.dataset.copy === 'rename' ? rename : filename;
+					if (target?.textContent) copyText(target.textContent, target, button);
+				});
+			}
+
+			/* ── 2 ── */
+			const verdict = root.querySelector<HTMLElement>('[data-verdict]');
+			const line = root.querySelector<HTMLElement>('[data-verdict-line]');
+			const flags = root.querySelector<HTMLElement>('[data-flags]');
+			const dump = root.querySelector<HTMLElement>('[data-dump]');
+			const rows = root.querySelector<HTMLElement>('[data-rows]');
+			const paste = root.querySelector<HTMLTextAreaElement>('[data-paste]');
+			const file = root.querySelector<HTMLInputElement>('[data-file]');
+			const drop = root.querySelector<HTMLElement>('[data-drop]');
+
+			function show(state: 'ok' | 'warn' | 'bad', message: string) {
+				if (!verdict || !line) return;
+				verdict.hidden = false;
+				verdict.classList.remove('is-ok', 'is-warn', 'is-bad');
+				verdict.classList.add(`is-${state}`);
+				line.textContent = message;
+			}
+
+			function inspect(text: string) {
+				if (!verdict) return;
+				if (!text.trim()) {
+					verdict.hidden = true;
+					return;
+				}
+
+				let data: unknown;
+				try {
+					data = JSON.parse(text);
+				} catch (err) {
+					show(
+						'bad',
+						`This is not valid JSON — ${(err as Error).message}. The usual cause is a partly copied file, or the wrong file. Re-run the evaluation script and upload the file it writes, unedited.`
+					);
+					if (flags) flags.hidden = true;
+					if (dump) dump.hidden = true;
+					return;
+				}
+
+				const entries = flatten(data);
+				const flagged = entries.filter((e) => classify(e.value, e.path) === 'fail');
+				const empties = entries.filter((e) => classify(e.value, e.path) === 'empty');
+
+				if (flagged.length) {
+					show(
+						'warn',
+						`Valid JSON, but ${flagged.length} ${flagged.length === 1 ? 'entry reads' : 'entries read'} as a failure. Fix the underlying problem and re-run the script — submitting this as it stands is likely to score zero.`
+					);
+				} else {
+					show(
+						'ok',
+						`Valid JSON, ${entries.length} ${entries.length === 1 ? 'value' : 'values'} recorded, and nothing in it reads as a failure${empties.length ? `. ${empties.length} ${empties.length === 1 ? 'value is' : 'values are'} empty, which may be normal — have a look below` : ''}. The portal still does the real evaluation.`
+					);
+				}
+
+				if (flags) {
+					flags.innerHTML = '';
+					for (const entry of flagged.slice(0, 12)) {
+						const li = document.createElement('li');
+						li.textContent = `${entry.path} → ${entry.value}`;
+						flags.appendChild(li);
+					}
+					if (flagged.length > 12) {
+						const li = document.createElement('li');
+						li.textContent = `…and ${flagged.length - 12} more, listed below.`;
+						flags.appendChild(li);
+					}
+					flags.hidden = !flagged.length;
+				}
+
+				if (rows && dump) {
+					rows.innerHTML = '';
+					for (const entry of entries) {
+						const row = document.createElement('div');
+						row.className =
+							'subcheck__row' + (classify(entry.value, entry.path) === 'fail' ? ' is-flagged' : '');
+						const k = document.createElement('span');
+						k.textContent = entry.path;
+						const v = document.createElement('span');
+						v.textContent = entry.value === '' ? '(empty)' : entry.value;
+						row.append(k, v);
+						rows.appendChild(row);
+					}
+					/* Say so rather than trailing off — a truncated list that looks
+					   complete is how a real failure gets missed. */
+					if (entries.length >= MAX_ROWS) {
+						const more = document.createElement('div');
+						more.className = 'subcheck__row';
+						more.textContent = `Stopped after ${MAX_ROWS} values — open the file directly to see the rest.`;
+						rows.appendChild(more);
+					}
+					dump.hidden = false;
+				}
+			}
+
+			paste?.addEventListener('input', () => inspect(paste.value));
+
+			function readFile(f: File) {
+				const reader = new FileReader();
+				reader.onload = () => {
+					const text = String(reader.result ?? '');
+					if (paste) paste.value = text;
+					inspect(text);
+				};
+				reader.onerror = () => show('bad', 'That file could not be read. Try pasting its contents instead.');
+				reader.readAsText(f);
+			}
+
+			file?.addEventListener('change', () => {
+				const f = file.files?.[0];
+				if (f) readFile(f);
+			});
+
+			if (drop) {
+				for (const type of ['dragenter', 'dragover']) {
+					drop.addEventListener(type, (e) => {
+						e.preventDefault();
+						drop.classList.add('is-over');
+					});
+				}
+				for (const type of ['dragleave', 'drop']) {
+					drop.addEventListener(type, () => drop.classList.remove('is-over'));
+				}
+				drop.addEventListener('drop', (e) => {
+					e.preventDefault();
+					const f = (e as DragEvent).dataTransfer?.files?.[0];
+					if (f) readFile(f);
+				});
+			}
+		}
+	}
+
+	initSubCheck();
+	document.addEventListener('astro:page-load', initSubCheck);
+</script>

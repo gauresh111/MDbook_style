@@ -1,0 +1,303 @@
+---
+/**
+ * A stage band — the chapter break between groups of tasks.
+ *
+ * No box: the band is just an opaque strip of page that the rail cannot show
+ * through, so the line arrives at the stage title, breaks, and picks up again
+ * below. That break is what makes three stages read as three phases rather than
+ * one run of ten beats, and it needs no border to do it.
+ *
+ * Takes either a real span:
+ *
+ *   <RoadmapStage label="Stage 1" title="Learning" start="2025-08-26" end="2025-11-17">
+ *
+ * …or, for a milestone with nothing scheduled yet, a literal:
+ *
+ *   <RoadmapStage label="Finale" title="National Finale" dates="Date to be announced" finale>
+ *
+ * One or the other is required — a band with no dates at all is the thing this
+ * page exists to prevent. A band with a span also takes the state colour on its
+ * label, so which phase you are in is legible without reading the dates.
+ *
+ * `finale` is the last band. The rail ends there, so it is the one place that
+ * takes a fill — the theme's --t-finale-* pair, the same treatment the homepage
+ * uses to close its story.
+ */
+import { formatSpan, requireSpan, requireText, stateOf } from './roadmap-dates';
+
+interface Props {
+	label: string;
+	title: string;
+	/** ISO YYYY-MM-DD. Required unless `dates` is given. */
+	start?: string;
+	/** ISO YYYY-MM-DD, inclusive. Required unless `dates` is given. */
+	end?: string;
+	/** Literal replacement for a band with no scheduled span. */
+	dates?: string;
+	finale?: boolean;
+}
+
+const { label, title, start, end, dates, finale = false } = Astro.props as Partial<Props>;
+
+const name = requireText(label, 'label', '<RoadmapStage>');
+const heading = requireText(title, 'title', `Stage "${name}"`);
+
+const literal = typeof dates === 'string' && dates.trim() !== '' ? dates.trim() : null;
+const hasSpan = start !== undefined || end !== undefined;
+
+if (!literal && !hasSpan) {
+	throw new Error(
+		`Roadmap: stage "${name}" has no dates. Give it \`start\` and \`end\` as ` +
+			`YYYY-MM-DD, or \`dates="…"\` if the span is not fixed yet.`
+	);
+}
+
+/* Validated only when a span was actually attempted, so `dates` alone is a
+   complete answer rather than a way to skip the check. */
+const span = hasSpan ? requireSpan(start, end, `Stage "${name}"`) : null;
+const state = span ? stateOf(span, Date.now()) : null;
+const shown = literal ?? (span ? formatSpan(span) : '');
+---
+
+<div
+	class:list={['stage', finale && 'stage--finale', state && `is-${state.status}`]}
+	data-beat
+	data-when={span ? true : undefined}
+	data-state={state?.status}
+	data-start={span?.start}
+	data-end={span?.end}
+>
+	<span class="stage__node" data-node aria-hidden="true"></span>
+
+	<div class="stage__in">
+		<p class="stage__label">{name}</p>
+		<h2 class="stage__title">{heading}</h2>
+		<p class="stage__dates">{shown}</p>
+		<div class="stage__body"><slot /></div>
+	</div>
+</div>
+
+<style>
+.stage {
+	--stage-node: 0.85rem;
+
+	position: relative;
+	z-index: 2;
+	align-self: center;
+	inline-size: min(100%, 32rem);
+	/* No bottom margin — the gap below is padding instead, so the band's opaque
+	   background carries all the way down to the first badge under it. As margin
+	   it left the rail exposed between the two with nothing to join, which reads
+	   as a stray line hanging off the stage title. */
+	margin-block: 3rem 0;
+	padding-block: 1.5rem 2.4rem;
+	text-align: center;
+	/* Opaque, not translucent: the band's whole job is to hide the rail running
+	   behind it, or the line strikes through the heading. */
+	background: rgb(var(--t-body-rgb));
+}
+
+/* The band's background ends where the next task's box begins, but that task's
+   badge starts --badge-top lower — leaving a short stub of rail hanging under
+   the stage title with nothing to join. This masks exactly that stub. It is a
+   narrow strip rather than extra padding on the band because the band is wide
+   enough to overlap the cards, and painting over them would clip the top of the
+   first card's border. */
+.stage::after {
+	content: '';
+	position: absolute;
+	inset-block-start: 100%;
+	inset-inline-start: 50%;
+	translate: -50% 0;
+	inline-size: 1rem;
+	block-size: var(--badge-top);
+	background: rgb(var(--t-body-rgb));
+}
+
+/* Nothing follows the finale, so there is no stub to mask. */
+.stage--finale::after {
+	content: none;
+}
+
+/* The opening band starts the timeline rather than breaking it, so it takes no
+   gap above and no node. Child 2, not child 1: the rail element is always first
+   inside .roadmap. */
+.stage:nth-child(2) {
+	margin-block-start: 0;
+	padding-block-start: 0;
+}
+
+.stage:nth-child(2) .stage__node {
+	display: none;
+}
+
+/* ── Node ──
+   Sits on the rail above the label, marking where the line reaches the next
+   phase. The ring is the page's own colour so the line passes behind it. */
+.stage__node {
+	position: absolute;
+	inset-block-start: 0.15rem;
+	inset-inline-start: 50%;
+	translate: -50% 0;
+	inline-size: var(--stage-node);
+	block-size: var(--stage-node);
+	border-radius: 50%;
+	background: var(--t-border);
+	box-shadow: 0 0 0 4px rgb(var(--t-body-rgb));
+	transition: background-color 0.3s ease;
+}
+
+.stage.is-lit .stage__node {
+	background: var(--rm-past);
+	/* Keeps the ring while flaring — the ring is this node's mask over the rail,
+	   so a plain flare would drop it and let the line show through. */
+	animation: rm-flare-ring 0.75s ease-out;
+}
+
+/* ── Heading ── */
+.stage__label {
+	margin: 1.1rem 0 0;
+	font-size: 0.7rem;
+	font-weight: 700;
+	letter-spacing: 0.16em;
+	text-transform: uppercase;
+	/* Default for a band with no span — the finale, until its date is set. */
+	color: var(--t-accent);
+	transition: color 0.3s ease;
+}
+
+.stage.is-past .stage__label {
+	color: var(--rm-past);
+}
+
+.stage.is-live .stage__label {
+	color: var(--rm-live);
+}
+
+.stage.is-upcoming .stage__label {
+	color: var(--rm-next);
+}
+
+.stage:nth-child(2) .stage__label {
+	margin-block-start: 0;
+}
+
+.stage__title {
+	margin: 0.3rem 0 0;
+	font-family: var(--t-font-heading);
+	font-size: 1.35rem;
+	font-weight: 600;
+	line-height: 1.3;
+	letter-spacing: -0.01em;
+	color: var(--t-text-strong);
+}
+
+.stage__dates {
+	margin: 0.3rem 0 0;
+	font-family: var(--t-font-mono);
+	font-size: 0.78rem;
+	color: var(--t-text-faint);
+}
+
+.stage.is-live .stage__dates {
+	color: var(--rm-live);
+}
+
+/* Direct children only, for the same reason RoadmapTask scopes its prose that
+   way — a blanket `:global(p)` outranks the styles of anything nested inside. */
+.stage__body > :global(p) {
+	margin: 0.8rem auto 0;
+	max-inline-size: 44ch;
+	font-size: 0.92rem;
+	line-height: 1.65;
+	color: var(--t-text-muted);
+}
+
+/* ── Finale ──
+   The one filled surface on the page. The rail runs into its node and stops. */
+.stage--finale {
+	margin-block: 3rem 0;
+	padding: 1.75rem 1.5rem 1.6rem;
+	background: var(--t-finale-bg);
+	border: 1px solid var(--t-finale-border);
+	border-radius: 0.75rem;
+}
+
+.stage--finale .stage__node {
+	inset-block-start: calc(-1 * var(--stage-node) / 2);
+}
+
+.stage--finale .stage__label {
+	margin-block-start: 0;
+}
+
+.stage--finale .stage__body > :global(p) {
+	color: var(--t-text);
+}
+
+/* ── Scroll reveal ──
+   Moves the inner wrapper, never the band: the node is a sibling of it, and the
+   container's script measures node positions off the rail. */
+@media (scripting: enabled) {
+	.stage__in {
+		opacity: 0;
+		translate: 0 1rem;
+		transition: opacity 0.55s ease, translate 0.55s cubic-bezier(0.22, 1, 0.36, 1);
+	}
+
+	.stage__node {
+		opacity: 0;
+		transition: opacity 0.45s ease, background-color 0.3s ease;
+	}
+
+	.stage.is-in .stage__in {
+		opacity: 1;
+		translate: 0 0;
+	}
+
+	.stage.is-in .stage__node {
+		opacity: 1;
+	}
+}
+
+@media (max-width: 720px) {
+	.stage {
+		inline-size: 100%;
+		margin-block: 2.25rem 0;
+		padding-block-end: 1.6rem;
+		text-align: left;
+	}
+
+	/* The rail sits at half a badge from the left edge in this layout, so the node
+	   and the stub mask follow it there. */
+	.stage__node,
+	.stage::after {
+		inset-inline-start: calc(var(--badge) / 2);
+	}
+
+	.stage__body > :global(p) {
+		margin-inline: 0;
+	}
+
+	.stage__title {
+		font-size: 1.2rem;
+	}
+
+	.stage--finale {
+		padding: 1.35rem 1.2rem 1.3rem;
+	}
+}
+
+@media (prefers-reduced-motion: reduce) {
+	.stage .stage__in,
+	.stage .stage__node {
+		opacity: 1;
+		translate: none;
+		transition: none;
+	}
+
+	.stage.is-lit .stage__node {
+		animation: none;
+	}
+}
+</style>

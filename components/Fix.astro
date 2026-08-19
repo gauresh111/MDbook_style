@@ -1,0 +1,141 @@
+---
+/**
+ * One known failure and what to do about it.
+ *
+ * The summary is written as the *symptom*, not the cause — a student arrives
+ * here holding a line of terminal output, and matching that line is the whole
+ * job. Causes and explanations belong in the body.
+ */
+interface Props {
+	/** Anchor stem. `Verify`'s `fix` prop and the resulting id must agree, so
+	 *  both take the full `fix-…` form. */
+	id: string;
+	symptom: string;
+	/** Set when the symptom is literal terminal output rather than a
+	 *  description of it. */
+	mono?: boolean;
+	/** Extra search terms — the exact error string when the summary paraphrases
+	 *  it, alternative spellings, the command that produces it. Never displayed. */
+	keywords?: string;
+}
+
+const { id, symptom, mono = false, keywords } = Astro.props;
+---
+
+<details class="fix" id={id} data-fix data-keywords={keywords}>
+	<summary class="fix__summary">
+		<svg class="fix__chevron" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="9 6 15 12 9 18"></polyline></svg>
+		<span class={`fix__symptom${mono ? ' fix__symptom--mono' : ''}`}>{symptom}</span>
+	</summary>
+	<div class="fix__body">
+		<slot />
+	</div>
+</details>
+
+<style>
+.fix {
+	border: 1px solid var(--t-border);
+	border-radius: 0.5rem;
+	background: rgb(var(--t-body-rgb));
+	overflow: hidden;
+}
+
+.fix[open] {
+	background: rgb(var(--t-surface-2-rgb));
+}
+
+.fix__summary {
+	display: flex;
+	align-items: flex-start;
+	gap: 0.5rem;
+	padding: 0.6rem 0.8rem;
+	cursor: pointer;
+	list-style: none;
+	color: var(--t-text-strong);
+}
+
+/* Safari draws its own disclosure triangle unless the webkit pseudo-element is
+   cleared too, which would put two markers on every row. */
+.fix__summary::-webkit-details-marker {
+	display: none;
+}
+
+.fix__summary:hover {
+	background: rgba(var(--t-ink-rgb), 0.04);
+}
+
+.fix__summary:focus-visible {
+	outline: 2px solid var(--t-accent);
+	outline-offset: -2px;
+}
+
+.fix__chevron {
+	flex-shrink: 0;
+	margin-block-start: 0.15rem;
+	color: var(--t-text-faint);
+	transition: rotate 0.15s ease;
+}
+
+.fix[open] .fix__chevron {
+	rotate: 90deg;
+	color: var(--t-accent);
+}
+
+.fix__symptom {
+	font-size: 0.88rem;
+	line-height: 1.5;
+	font-weight: 500;
+}
+
+/* Wrapped, not scrolled: an error line is the thing being matched by eye
+   against the terminal, so all of it has to be visible at once. */
+.fix__symptom--mono {
+	font-family: var(--t-font-mono);
+	font-size: 0.8rem;
+	overflow-wrap: anywhere;
+}
+
+.fix__body {
+	padding: 0.15rem 0.85rem 0.85rem;
+	border-block-start: 1px solid var(--t-border);
+	margin-block-start: 0.1rem;
+}
+
+/* The body is authored as markdown, so it arrives with Starlight's spacing and
+   type sizes. Both are set for full-width prose and read as oversized inside a
+   0.5rem-radius box. */
+.fix__body :global(p),
+.fix__body :global(li) {
+	font-size: 0.86rem;
+	line-height: 1.6;
+	color: var(--t-text-muted);
+}
+
+.fix__body :global(p) {
+	margin: 0.7rem 0 0;
+}
+
+.fix__body :global(ul),
+.fix__body :global(ol) {
+	margin: 0.6rem 0 0;
+	padding-inline-start: 1.2rem;
+}
+
+.fix__body :global(li + li) {
+	margin-block-start: 0.25rem;
+}
+
+.fix__body :global(.expressive-code) {
+	margin: 0.6rem 0 0;
+}
+
+.fix__body :global(strong) {
+	color: var(--t-text-strong);
+}
+
+@media (prefers-reduced-motion: reduce) {
+	.fix__chevron {
+		transition: none;
+	}
+}
+</style>

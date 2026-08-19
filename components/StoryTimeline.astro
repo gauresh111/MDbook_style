@@ -1,0 +1,160 @@
+---
+---
+<div class="story-timeline">
+  <!-- The rail is a real element rather than a ::before so its fill can be
+       driven independently. aria-hidden: it is decoration, the reading order
+       is already carried by the cards themselves. -->
+  <div class="story-rail" aria-hidden="true">
+    <span class="story-rail-fill"></span>
+  </div>
+  <slot />
+</div>
+
+<style>
+.story-timeline {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0;
+  margin-bottom: 4rem;
+  position: relative;
+}
+
+/* Scroll reveal base state */
+.story-timeline :global(.reveal) {
+  opacity: 0;
+  transform: translateY(32px);
+  transition: opacity 0.6s ease, transform 0.6s ease;
+}
+
+.story-timeline :global(.reveal.from-left) {
+  transform: translateX(-40px);
+}
+
+.story-timeline :global(.reveal.from-right) {
+  transform: translateX(40px);
+}
+
+.story-timeline :global(.reveal.visible) {
+  opacity: 1;
+  transform: translate(0);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .story-timeline :global(.reveal),
+  .story-timeline :global(.reveal.from-left),
+  .story-timeline :global(.reveal.from-right) {
+    opacity: 1;
+    transform: none;
+    transition: none;
+  }
+}
+</style>
+
+<script>
+  function initReveal() {
+    const els = document.querySelectorAll('.reveal');
+    if (!els.length) return;
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        entries.forEach((entry) => {
+          if (entry.isIntersecting) {
+            entry.target.classList.add('visible');
+            observer.unobserve(entry.target);
+          }
+        });
+      },
+      { threshold: 0.15 }
+    );
+
+    els.forEach((el) => observer.observe(el));
+  }
+
+  /* ── Rail progress ──
+     Fills the connecting line as the section scrolls past, and lights each
+     marker as the fill reaches it. Progress is measured against a reference
+     line 60% down the viewport: 0 when the rail's top crosses it, 1 when its
+     bottom does.
+
+     Driven from JS rather than `animation-timeline: scroll()` because that is
+     still Chromium-only; this behaves the same everywhere. If the script
+     never runs the fill simply stays at 0 and the rail reads as a plain
+     line, which is the pre-existing look.
+
+     The fill tracks the scroll in both directions while it is partway down —
+     that is what makes it read as a progress indicator — but the moment it
+     completes it stays completed. Scrolling back up from the finale to
+     re-read a beat should not undo the run. */
+  function initRailProgress() {
+    const rail = document.querySelector('.story-timeline');
+    if (!rail || rail.dataset.railReady) return;
+    const track = rail.querySelector('.story-rail');
+    if (!track) return;
+
+    rail.dataset.railReady = '1';
+    const items = Array.from(rail.querySelectorAll('.timeline-item'));
+
+    let ticking = false;
+    let complete = false;
+
+    function update() {
+      if (complete) return;
+
+      /* Measured on the rail itself, not on the section: the rail is inset
+         from the section's box (it starts on the first marker), and the
+         gradient stop resolves against the rail's own height — so measuring
+         the section would put the fill and the markers out of step. */
+      const box = track.getBoundingClientRect();
+      if (box.height === 0) return;
+
+      const ref = window.innerHeight * 0.6;
+      let progress = (ref - box.top) / box.height;
+      progress = Math.max(0, Math.min(1, progress));
+      /* Written as a finished percentage rather than a 0–1 number the CSS
+         then multiplies: `calc(var(--progress) * 100%)` inside a gradient
+         stop did not evaluate reliably, pinning the stop near 100%. */
+      rail.style.setProperty('--story-fill', (progress * 100).toFixed(2) + '%');
+
+      /* A marker counts as reached once its own centre is above the
+         reference line — so the dot lights exactly as the fill arrives,
+         rather than on a separate threshold that could drift out of step. */
+      const fillY = box.top + box.height * progress;
+      items.forEach((el) => {
+        const r = el.getBoundingClientRect();
+        el.classList.toggle('reached', r.top + 18 <= fillY);
+      });
+
+      /* Latched: every marker is lit and the line is full, so there is
+         nothing left to measure. Dropping the listeners is what holds it
+         there — no later scroll can walk it back. */
+      if (progress >= 1) {
+        complete = true;
+        items.forEach((el) => el.classList.add('reached'));
+        window.removeEventListener('scroll', onScroll);
+        window.removeEventListener('resize', onScroll);
+      }
+    }
+
+    function onScroll() {
+      if (ticking) return;
+      ticking = true;
+      requestAnimationFrame(() => {
+        ticking = false;
+        update();
+      });
+    }
+
+    window.addEventListener('scroll', onScroll, { passive: true });
+    window.addEventListener('resize', onScroll, { passive: true });
+    update();
+  }
+
+  initReveal();
+  initRailProgress();
+
+  document.addEventListener('astro:page-load', () => {
+    initReveal();
+    initRailProgress();
+  });
+</script>

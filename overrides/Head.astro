@@ -1,0 +1,854 @@
+---
+import Default from '@astrojs/starlight/components/Head.astro';
+---
+<Default {...Astro.props}><slot /></Default>
+
+
+<script is:inline>
+  /* ── Theme bootstrap ──
+     Runs before first paint so the page never flashes the wrong palette.
+     Only the two designed themes exist ('dark' = cream/Mars, 'light' =
+     Android docs); anything else stored is coerced to 'dark', which is the
+     site default when the visitor has no stored preference. */
+  (function () {
+    var stored = null;
+    try { stored = localStorage.getItem('starlight-theme'); } catch (_) {}
+    var theme = stored === 'light' ? 'light' : 'dark';
+    document.documentElement.dataset.theme = theme;
+    try { localStorage.setItem('starlight-theme', theme); } catch (_) {}
+  })();
+</script>
+
+
+<!-- The animated dot-field canvas that used to live here was a flourish of
+     the old cream theme. The Android docs design is flat, so the homepage is
+     now a plain surface in both appearances. -->
+
+<script is:inline>
+  (function () {
+    function init() {
+      if (document.getElementById('scroll-to-top')) return;
+
+      var btn = document.createElement('button');
+      btn.id = 'scroll-to-top';
+      btn.setAttribute('aria-label', 'Scroll to top');
+      btn.innerHTML = '<svg viewBox="0 0 24 24"><polyline points="18 15 12 9 6 15"></polyline></svg>';
+      document.body.appendChild(btn);
+
+      window.addEventListener('scroll', function () {
+        if (window.scrollY > 300) {
+          btn.classList.add('visible');
+        } else {
+          btn.classList.remove('visible');
+        }
+      }, { passive: true });
+
+      btn.addEventListener('click', function () {
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+      });
+    }
+
+    if (document.readyState === 'loading') {
+      document.addEventListener('DOMContentLoaded', init);
+    } else {
+      init();
+    }
+  })();
+</script>
+
+<script is:inline>
+  /* ── Floating mini-player for YouTube embeds ─────────────────────────────
+     The .video-embed slot, .video-mini-wrap and .video-mini-stage are emitted
+     at build time by remarkYouTubeEmbeds, so this script never re-parents an
+     <iframe> on the page it belongs to — doing that reloads the video.
+
+     Carrying a video ACROSS pages is different. There is no client router
+     here, so every link is a full document load and a cross-origin iframe
+     cannot survive that. Instead the docked video's id and timestamp are kept
+     in sessionStorage and the player is rebuilt on the next page at the same
+     position. That costs a short re-buffer, which is a browser constraint
+     rather than a choice.
+
+     Only one video is ever docked. Docking a second one returns the first to
+     its slot and pauses it. */
+  (function () {
+    var KEY = 'kc-miniplayer';
+    var DOCK_RATIO = 0.4;
+    var reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+    /* ── YouTube IFrame API ────────────────────────────────────────────────
+       Needed for two things the DOM cannot tell us: whether a video has
+       actually started, and where it is up to. Loaded lazily and never
+       awaited hard — if it fails, the mini-player still docks, it just
+       cannot gate on load state or resume across pages — the manual pop-out
+       button stays available in that case. */
+    var ytPromise = null;
+    function loadYT() {
+      if (ytPromise) return ytPromise;
+      ytPromise = new Promise(function (resolve) {
+        if (window.YT && window.YT.Player) return resolve(window.YT);
+        var settled = false;
+        function finish(v) { if (!settled) { settled = true; resolve(v); } }
+        var prev = window.onYouTubeIframeAPIReady;
+        window.onYouTubeIframeAPIReady = function () {
+          if (typeof prev === 'function') prev();
+          finish(window.YT);
+        };
+        var s = document.createElement('script');
+        s.src = 'https://www.youtube.com/iframe_api';
+        s.async = true;
+        s.onerror = function () { finish(null); };
+        document.head.appendChild(s);
+        setTimeout(function () { finish(window.YT || null); }, 8000);
+      });
+      return ytPromise;
+    }
+
+    function icon(path) {
+      return '<svg viewBox="0 0 24 24" width="15" height="15" aria-hidden="true">' +
+             '<path d="' + path + '" stroke="currentColor" stroke-width="2.2" ' +
+             'stroke-linecap="round" stroke-linejoin="round" fill="none"/></svg>';
+    }
+    var ICON_BACK  = 'M9 5l-7 7 7 7M2 12h14a6 6 0 006-6';
+    var ICON_CLOSE = 'M18 6L6 18M6 6l12 12';
+    var ICON_POP   = 'M4 14v5a1 1 0 001 1h5M20 10V5a1 1 0 00-1-1h-5M14 10l6-6M4 20l6-6';
+
+    /* ── Saved session ─────────────────────────────────────────────────── */
+    function readSession() {
+      try {
+        var raw = sessionStorage.getItem(KEY);
+        return raw ? JSON.parse(raw) : null;
+      } catch (_) { return null; }
+    }
+    function writeSession(data) {
+      try { sessionStorage.setItem(KEY, JSON.stringify(data)); } catch (_) {}
+    }
+    function clearSession() {
+      try { sessionStorage.removeItem(KEY); } catch (_) {}
+    }
+
+    /* ── Dock manager: at most one floating player ─────────────────────── */
+    var dockOwner = null;
+
+    /* Publish the docked player's real height so #scroll-to-top can sit clear
+       of it. Measured rather than computed: the CSS estimate cannot know the
+       header's rendered height or the wrapper's borders, and being ~30px out
+       is enough to put the arrow on top of the player on a phone. */
+    var measured = null;
+    function reportHeight(el) {
+      measured = el;
+      var h = el ? el.offsetHeight : 0;
+      if (h) document.documentElement.style.setProperty('--kc-mini-actual-h', h + 'px');
+    }
+    function clearHeight() {
+      measured = null;
+      document.documentElement.style.removeProperty('--kc-mini-actual-h');
+    }
+    window.addEventListener('resize', function () {
+      if (measured && measured.isConnected) reportHeight(measured);
+    });
+
+    function claimDock(owner) {
+      if (dockOwner && dockOwner !== owner) dockOwner.evict();
+      dockOwner = owner;
+      document.documentElement.classList.add('has-miniplayer');
+    }
+    function releaseDock(owner) {
+      if (dockOwner !== owner) return;
+      dockOwner = null;
+      clearHeight();
+      document.documentElement.classList.remove('has-miniplayer');
+    }
+
+    /* Animate a wrapper from where it was to where it now is. */
+    function flip(wrap, first) {
+      if (reduceMotion || !first) return;
+      var last = wrap.getBoundingClientRect();
+      if (!first.width || !last.width) return;
+
+      wrap.classList.add('is-animating');
+      wrap.style.transition = 'none';
+      wrap.style.transform =
+        'translate(' + (first.left - last.left) + 'px, ' + (first.top - last.top) + 'px) ' +
+        'scale(' + (first.width / last.width) + ', ' + (first.height / last.height) + ')';
+
+      requestAnimationFrame(function () {
+        wrap.style.transition = 'transform 320ms cubic-bezier(0.22, 1, 0.36, 1)';
+        wrap.style.transform = 'translate(0, 0) scale(1, 1)';
+      });
+
+      function done(e) {
+        if (e && e.propertyName !== 'transform') return;
+        wrap.removeEventListener('transitionend', done);
+        wrap.classList.remove('is-animating');
+        wrap.style.transition = '';
+        wrap.style.transform = '';
+      }
+      wrap.addEventListener('transitionend', done);
+      setTimeout(done, 420); /* transitionend is skipped if re-toggled mid-flight */
+    }
+
+    /* Build the header strip shown only while docked. Controls live above the
+       video rather than over it, so they never collide with YouTube's own
+       hover controls — which is what made the old overlay close button awkward
+       to hit. */
+    function buildHead(title, onBack, onClose, backLabel) {
+      var head = document.createElement('div');
+      /* .not-content opts this subtree out of Starlight's markdown spacing rules,
+         which would otherwise put a 1rem top margin on the second button. */
+      head.className = 'video-mini-head not-content';
+
+      var dot = document.createElement('span');
+      dot.className = 'video-mini-dot';
+      head.appendChild(dot);
+
+      var label = document.createElement('span');
+      label.className = 'video-mini-title';
+      label.textContent = title || 'Now playing';
+      label.title = title || '';
+      head.appendChild(label);
+
+      var back = document.createElement('button');
+      back.type = 'button';
+      back.className = 'video-mini-btn video-mini-back';
+      back.setAttribute('aria-label', backLabel);
+      back.title = backLabel;
+      back.innerHTML = icon(ICON_BACK);
+      back.addEventListener('click', onBack);
+      head.appendChild(back);
+
+      var close = document.createElement('button');
+      close.type = 'button';
+      close.className = 'video-mini-btn video-mini-close';
+      close.setAttribute('aria-label', 'Close mini-player');
+      close.title = 'Close mini-player';
+      close.innerHTML = icon(ICON_CLOSE);
+      close.addEventListener('click', onClose);
+      head.appendChild(close);
+
+      return head;
+    }
+
+    /* ── Drag + resize for the floating player ───────────────────────────
+       Pointer Events cover mouse, touch and pen with one code path. Position
+       is expressed as left/top (--kc-mini-x/--kc-mini-y) rather than the
+       default right/bottom dock, so .is-positioned is added the first time
+       the reader actually moves it — until then it stays glued to the corner
+       exactly as before. Resizing only ever changes width; height follows
+       from the 16:9 stage automatically. */
+    function makeMovable(wrap, head, handle) {
+      var minW = 200;
+      function maxW() { return Math.min(720, window.innerWidth * 0.92); }
+
+      function rect() { return wrap.getBoundingClientRect(); }
+
+      function setPos(left, top) {
+        var r = rect();
+        var maxLeft = window.innerWidth - r.width - 4;
+        var maxTop = window.innerHeight - r.height - 4;
+        left = Math.min(Math.max(left, 4), Math.max(4, maxLeft));
+        top = Math.min(Math.max(top, 4), Math.max(4, maxTop));
+        wrap.style.setProperty('--kc-mini-x', left + 'px');
+        wrap.style.setProperty('--kc-mini-y', top + 'px');
+        wrap.classList.add('is-positioned');
+      }
+
+      function setWidth(w) {
+        w = Math.min(Math.max(w, minW), maxW());
+        wrap.style.setProperty('--kc-mini-user-width', w + 'px');
+      }
+
+      /* ── Drag (header) ──────────────────────────────────────────────── */
+      var dragId = null, dragDX = 0, dragDY = 0;
+
+      head.addEventListener('pointerdown', function (e) {
+        if (e.target.closest('.video-mini-btn')) return; // let back/close work
+        if (dragId !== null) return;
+        dragId = e.pointerId;
+        var r = rect();
+        dragDX = e.clientX - r.left;
+        dragDY = e.clientY - r.top;
+        head.setPointerCapture(dragId);
+        e.preventDefault();
+      });
+      head.addEventListener('pointermove', function (e) {
+        if (e.pointerId !== dragId) return;
+        setPos(e.clientX - dragDX, e.clientY - dragDY);
+      });
+      function endDrag(e) {
+        if (e.pointerId !== dragId) return;
+        try { head.releasePointerCapture(dragId); } catch (_) {}
+        dragId = null;
+      }
+      head.addEventListener('pointerup', endDrag);
+      head.addEventListener('pointercancel', endDrag);
+
+      if (!handle) return;
+
+      /* ── Resize: single-pointer corner drag ──────────────────────────── */
+      var resizeId = null, startW = 0, startX = 0;
+
+      handle.addEventListener('pointerdown', function (e) {
+        if (pinchActive) return;
+        if (resizeId !== null) return;
+        resizeId = e.pointerId;
+        startW = rect().width;
+        startX = e.clientX;
+        wrap.classList.add('is-resizing');
+        handle.setPointerCapture(resizeId);
+        e.preventDefault();
+        e.stopPropagation();
+      });
+      handle.addEventListener('pointermove', function (e) {
+        if (e.pointerId !== resizeId) return;
+        setWidth(startW + (e.clientX - startX));
+      });
+      function endResize(e) {
+        if (e.pointerId !== resizeId) return;
+        try { handle.releasePointerCapture(resizeId); } catch (_) {}
+        resizeId = null;
+        wrap.classList.remove('is-resizing');
+      }
+      handle.addEventListener('pointerup', endResize);
+      handle.addEventListener('pointercancel', endResize);
+
+      /* ── Resize: two-finger pinch anywhere on the player ─────────────── */
+      var pinchActive = false, pinchStartDist = 0, pinchStartW = 0;
+      var touches = {};
+
+      function touchDist() {
+        var pts = Object.keys(touches).map(function (k) { return touches[k]; });
+        if (pts.length < 2) return 0;
+        var dx = pts[0].x - pts[1].x, dy = pts[0].y - pts[1].y;
+        return Math.sqrt(dx * dx + dy * dy);
+      }
+
+      wrap.addEventListener('pointerdown', function (e) {
+        if (e.pointerType !== 'touch') return;
+        touches[e.pointerId] = { x: e.clientX, y: e.clientY };
+        if (Object.keys(touches).length === 2) {
+          pinchActive = true;
+          pinchStartDist = touchDist();
+          pinchStartW = rect().width;
+          wrap.classList.add('is-resizing');
+          /* Cancel any in-flight single-pointer drag/resize so the two
+             gestures never fight over the same frame. Release capture too —
+             otherwise that pointer keeps delivering move/up events to
+             head/handle even though dragId/resizeId no longer match it. */
+          if (dragId !== null) { try { head.releasePointerCapture(dragId); } catch (_) {} dragId = null; }
+          if (resizeId !== null) { try { handle.releasePointerCapture(resizeId); } catch (_) {} resizeId = null; }
+        }
+      });
+      wrap.addEventListener('pointermove', function (e) {
+        if (e.pointerType !== 'touch' || !touches[e.pointerId]) return;
+        touches[e.pointerId] = { x: e.clientX, y: e.clientY };
+        if (pinchActive) {
+          var dist = touchDist();
+          if (pinchStartDist > 0) setWidth(pinchStartW * (dist / pinchStartDist));
+        }
+      });
+      function endTouch(e) {
+        if (e.pointerType !== 'touch') return;
+        delete touches[e.pointerId];
+        if (Object.keys(touches).length < 2 && pinchActive) {
+          pinchActive = false;
+          wrap.classList.remove('is-resizing');
+        }
+      }
+      wrap.addEventListener('pointerup', endTouch);
+      wrap.addEventListener('pointercancel', endTouch);
+    }
+
+    function buildResizeHandle() {
+      var handle = document.createElement('div');
+      handle.className = 'video-mini-resize not-content';
+      handle.setAttribute('aria-hidden', 'true');
+      return handle;
+    }
+
+    /* ── A video that lives in the article ─────────────────────────────── */
+    function setupEmbed(slot) {
+      if (slot.dataset.miniplayerInit) return;
+      slot.dataset.miniplayerInit = '1';
+
+      var wrap = slot.querySelector('.video-mini-wrap');
+      var frame = slot.querySelector('iframe');
+      if (!wrap || !frame) return;
+
+      var videoId = wrap.dataset.videoId || '';
+      var title = wrap.dataset.videoTitle || 'Now playing';
+
+      var floating = false;
+      var dismissed = false;
+      /* Cleared when popped out by hand while still on screen, so the observer
+         does not immediately undock. Re-arms once the article has genuinely
+         scrolled past the video. */
+      var armed = true;
+      /* The reader has reached the video at least once — stops it docking on
+         load, since these embeds start far below the fold. */
+      var seen = false;
+      /* Playback has actually begun. Nothing docks or is carried to another
+         page before this is true: a mini-player showing a still thumbnail is
+         just clutter. */
+      var started = false;
+      /* The IFrame API could not be loaded; manual pop-out still works. */
+      var apiDown = false;
+      var player = null;
+      var saveTimer = null;
+
+      var head = buildHead(title, function () {
+        armed = true;
+        undock();
+        slot.scrollIntoView({ behavior: reduceMotion ? 'auto' : 'smooth', block: 'center' });
+      }, function () {
+        /* Guarded: with several videos on a page every embed owns a (hidden)
+           close button, and an un-docked one must not clear the session
+           belonging to whichever video is actually docked. undock() does the
+           clearing, and only runs when this embed is the docked one. */
+        if (!floating) return;
+        dismissed = true;
+        armed = true;
+        undock();
+      }, 'Back to the video in the article');
+      wrap.insertBefore(head, wrap.firstChild);
+
+      var resizeHandle = buildResizeHandle();
+      wrap.appendChild(resizeHandle);
+      makeMovable(wrap, head, resizeHandle);
+
+      /* Tool row under the player. Every embed in these docs sits near the end
+         of its article, so there is rarely enough content below one to scroll
+         it out of view — auto-docking alone would seldom fire. */
+      var tools = document.createElement('div');
+      tools.className = 'video-embed-tools not-content';
+
+      var popBtn = document.createElement('button');
+      popBtn.type = 'button';
+      popBtn.className = 'video-embed-tool video-embed-pop';
+      popBtn.disabled = true;
+      popBtn.title = 'Start the video first, then it can follow you around';
+      popBtn.innerHTML = icon(ICON_POP) + '<span>Pop out</span>';
+      popBtn.addEventListener('click', function () {
+        if (!started && !apiDown) return;
+        armed = false;
+        dismissed = false;
+        dock();
+      });
+      tools.appendChild(popBtn);
+
+      if (wrap.dataset.watchUrl) {
+        var link = document.createElement('a');
+        link.className = 'video-embed-tool';
+        link.href = wrap.dataset.watchUrl;
+        link.target = '_blank';
+        link.rel = 'noopener noreferrer';
+        link.innerHTML = '<span>Open on YouTube ↗</span>';
+        tools.appendChild(link);
+      }
+      slot.parentNode.insertBefore(tools, slot.nextSibling);
+
+      function currentTime() {
+        try { return player && player.getCurrentTime ? player.getCurrentTime() : 0; }
+        catch (_) { return 0; }
+      }
+
+      function persist() {
+        if (!floating || !started) return;
+        writeSession({
+          videoId: videoId,
+          title: title,
+          time: Math.max(0, Math.floor(currentTime())),
+          sourceUrl: location.pathname + location.search,
+          watchUrl: wrap.dataset.watchUrl || '',
+        });
+      }
+
+      function dock() {
+        if (floating || dismissed || !(started || apiDown)) return;
+        claimDock(controller);
+        var first = wrap.getBoundingClientRect();
+        floating = true;
+        wrap.classList.add('is-floating');
+        slot.classList.add('is-popped');
+        reportHeight(wrap);
+        flip(wrap, first);
+        persist();
+        saveTimer = setInterval(persist, 1000);
+      }
+
+      function undock() {
+        if (!floating) return;
+        var first = wrap.getBoundingClientRect();
+        floating = false;
+        wrap.classList.remove('is-floating', 'is-positioned');
+        wrap.style.removeProperty('--kc-mini-x');
+        wrap.style.removeProperty('--kc-mini-y');
+        wrap.style.removeProperty('--kc-mini-user-width');
+        slot.classList.remove('is-popped');
+        clearInterval(saveTimer);
+        saveTimer = null;
+        releaseDock(controller);
+        clearSession();
+        flip(wrap, first);
+      }
+
+      var controller = {
+        videoId: videoId,
+        /* Another video took the dock. Step aside and stop making noise. */
+        evict: function () {
+          try { if (player && player.pauseVideo) player.pauseVideo(); } catch (_) {}
+          dismissed = true;
+          undock();
+        },
+        /* Restore a session that belongs to this very embed: seek its inline
+           player to where the mini-player left off instead of floating a
+           duplicate of a video that is already on screen. */
+        resume: function (time) {
+          pendingResume = function () {
+            try {
+              player.seekTo(time, true);
+              player.playVideo();
+            } catch (_) {}
+          };
+          if (ready) flushResume();
+        },
+      };
+      var pendingResume = null;
+      var ready = false;
+
+      function flushResume() {
+        if (!pendingResume) return;
+        var fn = pendingResume;
+        pendingResume = null;
+        fn();
+      }
+
+      /* Attach the API to the existing iframe — no new element, no reload. */
+      loadYT().then(function (YT) {
+        if (!YT || !YT.Player) {
+          /* API unavailable (blocked script, offline). Keep the manual pop-out
+             usable, but leave `started` false so nothing auto-docks or gets
+             carried to another page — without the API we cannot tell whether
+             the video ever loaded, and docking a cold thumbnail is clutter. */
+          apiDown = true;
+          popBtn.disabled = false;
+          popBtn.title = 'Pop out into a mini-player';
+          return;
+        }
+        player = new YT.Player(frame, {
+          events: {
+            onReady: function () {
+              ready = true;
+              flushResume();
+            },
+            onStateChange: function (e) {
+              /* -1 unstarted, 5 cued — anything else means it has loaded. */
+              if (e.data !== -1 && e.data !== 5 && !started) {
+                started = true;
+                popBtn.disabled = false;
+                popBtn.title = 'Pop out into a mini-player';
+              }
+              if (e.data === 0 && floating) undock(); /* ended */
+            },
+          },
+        });
+      });
+
+      window.addEventListener('pagehide', persist);
+
+      new IntersectionObserver(function (entries) {
+        entries.forEach(function (entry) {
+          /* Measure against whichever is smaller, the video or the viewport:
+             intersectionRatio alone can never reach DOCK_RATIO on a screen
+             shorter than the player, which would strand it docked. */
+          var vh = entry.rootBounds ? entry.rootBounds.height : window.innerHeight;
+          var denom = Math.min(entry.boundingClientRect.height, vh) || 1;
+          var visible = entry.intersectionRect.height / denom;
+
+          if (visible >= DOCK_RATIO) seen = true;
+
+          /* Dock whenever the video leaves the reading area in *either*
+             direction. These embeds sit at the end of their article, so
+             scrolling back up into the text above is a common reason to want
+             to keep watching. */
+          var away = seen && visible < DOCK_RATIO;
+
+          if (!armed) {
+            if (away) armed = true;
+            return;
+          }
+
+          if (away) {
+            /* Auto-dock only for a video that actually started. The manual
+               pop-out button is the escape hatch when the API is down. */
+            if (started) dock();
+          } else {
+            if (visible >= DOCK_RATIO) dismissed = false;
+            undock();
+          }
+        });
+      }, { threshold: [0, 0.2, 0.4, 0.6, 0.8, 1] }).observe(slot);
+
+      return controller;
+    }
+
+    /* ── A video carried over from a previous page ─────────────────────── */
+    function buildDetached(session) {
+      var wrap = document.createElement('div');
+      wrap.className = 'video-mini-wrap is-floating is-detached';
+
+      var stage = document.createElement('div');
+      stage.className = 'video-mini-stage';
+
+      var frame = document.createElement('iframe');
+      frame.src = 'https://www.youtube.com/embed/' + encodeURIComponent(session.videoId) +
+                  '?rel=0&enablejsapi=1&autoplay=1&start=' + (session.time || 0);
+      frame.title = session.title || 'YouTube video';
+      frame.setAttribute('frameborder', '0');
+      frame.setAttribute('referrerpolicy', 'strict-origin-when-cross-origin');
+      frame.setAttribute('allow',
+        'accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; fullscreen');
+      stage.appendChild(frame);
+
+      var owner = {
+        videoId: session.videoId,
+        evict: function () { teardown(); },
+      };
+
+      var dead = false;
+      function teardown() {
+        if (dead) return;
+        dead = true;
+        clearInterval(timer);
+        window.removeEventListener('pagehide', persist);
+        releaseDock(owner);
+        wrap.remove();
+      }
+
+      var head = buildHead(
+        session.title,
+        function () {
+          /* No slot on this page — go back to the article it came from. */
+          if (session.sourceUrl) location.href = session.sourceUrl;
+        },
+        function () { clearSession(); teardown(); },
+        'Back to the article this video is from'
+      );
+      wrap.appendChild(head);
+      wrap.appendChild(stage);
+      var resizeHandle = buildResizeHandle();
+      wrap.appendChild(resizeHandle);
+      document.body.appendChild(wrap);
+      claimDock(owner);
+      reportHeight(wrap);
+      makeMovable(wrap, head, resizeHandle);
+
+      var player = null;
+      loadYT().then(function (YT) {
+        if (YT && YT.Player) {
+          player = new YT.Player(frame, {
+            events: {
+              onStateChange: function (e) { if (e.data === 0) { clearSession(); teardown(); } },
+            },
+          });
+        }
+      });
+
+      /* Keep the stored timestamp fresh so the next hop resumes correctly.
+         Guarded by `dead`: after the reader closes this player the listener
+         must not write the session back and resurrect it on the next page. */
+      function persist() {
+        if (dead) return;
+        var t = session.time || 0;
+        try { if (player && player.getCurrentTime) t = Math.floor(player.getCurrentTime()); } catch (_) {}
+        session.time = t;
+        writeSession(session);
+      }
+      var timer = setInterval(persist, 1000);
+      window.addEventListener('pagehide', persist);
+    }
+
+    /* ── Boot ──────────────────────────────────────────────────────────── */
+    function init() {
+      var controllers = [];
+      document.querySelectorAll('.video-embed').forEach(function (slot) {
+        var c = setupEmbed(slot);
+        if (c) controllers.push(c);
+      });
+
+      var session = readSession();
+      if (!session || !session.videoId) return;
+
+      /* If the carried video also lives on this page, hand it back to its own
+         embed rather than floating a duplicate of it next to itself. */
+      var home = controllers.filter(function (c) { return c.videoId === session.videoId; })[0];
+      if (home) {
+        clearSession();
+        home.resume(session.time || 0);
+      } else if (!document.querySelector('.video-mini-wrap.is-detached')) {
+        buildDetached(session);
+      }
+    }
+
+    if (document.readyState === 'loading') {
+      document.addEventListener('DOMContentLoaded', init);
+    } else {
+      init();
+    }
+    document.addEventListener('astro:page-load', init);
+  })();
+</script>
+
+<script is:inline>
+  /* ── Collapsible sidebar toggle ── */
+  (function () {
+    var STORAGE_KEY = 'starlight-sidebar-collapsed';
+    var root = document.documentElement;
+
+    /* Restore state on <html> before first paint: the layout starts collapsed
+       instead of snapping (or animating) into it once scripts run. */
+    try {
+      if (localStorage.getItem(STORAGE_KEY) === '1') root.classList.add('sidebar-collapsed');
+    } catch (_) {}
+
+    function init() {
+      if (document.getElementById('sidebar-toggle')) return;
+      if (!document.querySelector('.sidebar-pane')) return;
+
+      /* Toggle button */
+      var btn = document.createElement('button');
+      btn.id = 'sidebar-toggle';
+      btn.type = 'button';
+      btn.setAttribute('aria-controls', 'starlight__sidebar');
+      document.body.appendChild(btn);
+
+      function sync() {
+        var collapsed = root.classList.contains('sidebar-collapsed');
+        var label = collapsed ? 'Show sidebar' : 'Hide sidebar';
+        btn.setAttribute('aria-expanded', collapsed ? 'false' : 'true');
+        btn.setAttribute('aria-label', label);
+        btn.setAttribute('title', label);
+      }
+
+      btn.addEventListener('click', function () {
+        var collapsed = root.classList.toggle('sidebar-collapsed');
+        try { localStorage.setItem(STORAGE_KEY, collapsed ? '1' : '0'); } catch (_) {}
+        sync();
+      });
+
+      sync();
+    }
+
+    if (document.readyState === 'loading') {
+      document.addEventListener('DOMContentLoaded', init);
+    } else {
+      init();
+    }
+    document.addEventListener('astro:page-load', init);
+  })();
+</script>
+
+
+<script is:inline>
+  /* ── Fix TOC last-item highlight at bottom of page ── */
+  (function () {
+    function init() {
+      /* Mark the last link in each TOC once */
+      ['starlight-toc', 'mobile-starlight-toc'].forEach(function (sel) {
+        var toc = document.querySelector(sel);
+        if (!toc) return;
+        var links = toc.querySelectorAll('a');
+        if (links.length) links[links.length - 1].classList.add('toc-last-link');
+      });
+
+      /* Toggle class on <html> — CSS handles the rest, no aria-current conflict */
+      window.addEventListener('scroll', function () {
+        var atBottom = window.scrollY + window.innerHeight >= document.documentElement.scrollHeight - 10;
+        document.documentElement.classList.toggle('toc-at-bottom', atBottom);
+      }, { passive: true });
+    }
+
+    if (document.readyState === 'loading') {
+      document.addEventListener('DOMContentLoaded', init);
+    } else {
+      init();
+    }
+    document.addEventListener('astro:page-load', init);
+  })();
+</script>
+
+<script is:inline>
+  /* ── Scroll the active sidebar item into view on page load ── */
+  (function () {
+    function scrollActiveIntoView() {
+      var sidebar = document.querySelector('#starlight__sidebar');
+      if (!sidebar) return;
+      var active = sidebar.querySelector('a[aria-current="page"]');
+      if (!active) return;
+
+      var sidebarRect = sidebar.getBoundingClientRect();
+      var activeRect = active.getBoundingClientRect();
+      var offset = activeRect.top - sidebarRect.top - (sidebarRect.height / 2) + (activeRect.height / 2);
+      sidebar.scrollTop += offset;
+    }
+
+    if (document.readyState === 'loading') {
+      document.addEventListener('DOMContentLoaded', scrollActiveIntoView);
+    } else {
+      scrollActiveIntoView();
+    }
+  })();
+</script>
+
+<script is:inline>
+  /* ── Follow the active "On this page" link as the reader scrolls ──
+     .right-sidebar is its own scroll container (position: fixed, height:
+     100vh, overflow-y: auto — see TwoColumnContent.astro), so it already
+     scrolls on hover/focus like any normal panel. What it doesn't do on its
+     own is keep pace with <starlight-toc>'s aria-current, which starlight-toc
+     moves to a new link via IntersectionObserver every time a new heading
+     scrolls into the reading area. On a long page (many headings) that
+     active link drifts out of the panel's visible range, so the reader can
+     be deep in "section 40" while the TOC is still showing "section 1".
+     Watching aria-current with a MutationObserver and nudging the panel's
+     own scrollTop (never the page's) keeps the highlighted entry in view. */
+  (function () {
+    function centerWithin(container, el, smooth) {
+      var containerRect = container.getBoundingClientRect();
+      var elRect = el.getBoundingClientRect();
+      var delta = elRect.top - containerRect.top - (containerRect.height / 2) + (elRect.height / 2);
+      if (smooth) {
+        container.scrollTo({ top: container.scrollTop + delta, behavior: 'smooth' });
+      } else {
+        container.scrollTop += delta;
+      }
+    }
+
+    function init() {
+      var toc = document.querySelector('starlight-toc');
+      var container = toc && toc.closest('.right-sidebar');
+      if (!toc || !container) return;
+
+      var lastActive = null;
+      function sync(smooth) {
+        var active = toc.querySelector('a[aria-current="true"]');
+        if (!active || active === lastActive) return;
+        lastActive = active;
+        centerWithin(container, active, smooth);
+      }
+
+      /* Snap to the initial heading without animating in on load. */
+      sync(false);
+
+      var observer = new MutationObserver(function () { sync(true); });
+      observer.observe(toc, { subtree: true, attributes: true, attributeFilter: ['aria-current'] });
+    }
+
+    if (document.readyState === 'loading') {
+      document.addEventListener('DOMContentLoaded', init);
+    } else {
+      init();
+    }
+    document.addEventListener('astro:page-load', init);
+  })();
+</script>

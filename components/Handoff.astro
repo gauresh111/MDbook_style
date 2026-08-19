@@ -1,0 +1,235 @@
+---
+/**
+ * "You are finished here." The moment the student leaves this site.
+ *
+ * Every page up to this point is something to do on your own machine; the marks
+ * are recorded on the portal, which is a different website. That handover was
+ * previously a link in a sentence, easy to read past — and a student who reads
+ * past it has done all the work and submitted none of it.
+ *
+ * So it gets a full stop of its own: what to take, where to go, and a plain
+ * statement that nothing here counts until it is over there.
+ */
+import site from 'virtual:mdbook-style/config';
+
+interface Props {
+	title?: string;
+	/** Where they are going. External by definition. */
+	href: string;
+	cta?: string;
+	/** What to have in hand before leaving. */
+	items?: string[];
+}
+
+const {
+	title = 'You are done on this site — now go and submit',
+	href,
+	cta = 'Open the eYRC portal',
+	items = [],
+} = Astro.props;
+---
+
+<aside class="handoff not-content" data-handoff>
+	<div class="handoff__glow" aria-hidden="true"></div>
+
+	<div class="handoff__body">
+		<p class="handoff__kicker">
+			<svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="7" y1="17" x2="17" y2="7"></line><polyline points="9 7 17 7 17 15"></polyline></svg>
+			Leaving this site
+		</p>
+
+		<h3 class="handoff__title">{title}</h3>
+
+		<p class="handoff__lede">
+			Nothing you tick, paste or check on this site is your submission — none of it reaches
+			{site.brand.org}. Your marks come from the file and the quiz on the portal, and only from
+			there.
+		</p>
+
+		{items.length > 0 && (
+			<>
+				<p class="handoff__label">Take with you</p>
+				<ul class="handoff__items">
+					{items.map((item) => (
+						<li>
+							<svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="20 6 9 17 4 12"></polyline></svg>
+							<span>{item}</span>
+						</li>
+					))}
+				</ul>
+			</>
+		)}
+
+		<slot />
+
+		<a class="handoff__cta" href={href} target="_blank" rel="noopener noreferrer">
+			<span>{cta}</span>
+			<svg class="handoff__cta-arrow" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="5" y1="12" x2="19" y2="12"></line><polyline points="12 5 19 12 12 19"></polyline></svg>
+		</a>
+	</div>
+</aside>
+
+<style>
+.handoff {
+	position: relative;
+	margin: 2rem 0 2.5rem;
+	border: 1px solid var(--t-accent);
+	border-radius: 0.85rem;
+	background: var(--t-finale-bg);
+	overflow: hidden;
+}
+
+/* A slow wash across the panel. It is the only ambient motion on the page, and
+   it is here because this is the one block that must not be skimmed past. */
+.handoff__glow {
+	position: absolute;
+	inset: 0;
+	pointer-events: none;
+	background: radial-gradient(
+		60% 120% at 15% 0%,
+		rgba(var(--t-accent-rgb), 0.16) 0%,
+		transparent 70%
+	);
+	animation: handoffDrift 9s ease-in-out infinite alternate;
+}
+
+@keyframes handoffDrift {
+	from { opacity: 0.55; translate: -4% 0; }
+	to   { opacity: 1;    translate: 4% 0; }
+}
+
+.handoff__body {
+	position: relative;
+	padding: 1.2rem 1.35rem 1.35rem;
+}
+
+.handoff__kicker {
+	display: inline-flex;
+	align-items: center;
+	gap: 0.4rem;
+	margin: 0;
+	font-family: var(--t-font-mono);
+	font-size: 0.7rem;
+	font-weight: 600;
+	letter-spacing: 0.09em;
+	text-transform: uppercase;
+	color: var(--t-accent);
+}
+
+.handoff h3.handoff__title {
+	margin: 0.45rem 0 0;
+	font-family: var(--t-font-heading);
+	font-size: 1.15rem;
+	font-weight: 600;
+	line-height: 1.35;
+	color: var(--t-text-strong);
+}
+
+.handoff__lede {
+	margin: 0.5rem 0 0;
+	max-inline-size: 46rem;
+	font-size: 0.9rem;
+	line-height: 1.65;
+	color: var(--t-text-muted);
+}
+
+.handoff__label {
+	margin: 1rem 0 0.4rem;
+	font-family: var(--t-font-mono);
+	font-size: 0.68rem;
+	font-weight: 600;
+	letter-spacing: 0.07em;
+	text-transform: uppercase;
+	color: var(--t-text-faint);
+}
+
+.handoff__items {
+	margin: 0;
+	padding: 0;
+	list-style: none;
+	display: grid;
+	gap: 0.3rem;
+}
+
+.handoff__items li {
+	display: flex;
+	align-items: flex-start;
+	gap: 0.5rem;
+	font-size: 0.88rem;
+	line-height: 1.55;
+	color: var(--t-text);
+}
+
+.handoff__items svg {
+	flex-shrink: 0;
+	margin-block-start: 0.2rem;
+	color: var(--t-ok-fg);
+}
+
+/* Slotted paragraphs. Matched by having no class of their own, since every
+   paragraph this component renders itself carries one — and `.not-content` on
+   the root means Starlight's prose styles are not doing this job. */
+.handoff__body :global(p:not([class])) {
+	margin: 0.9rem 0 0;
+	max-inline-size: 46rem;
+	font-size: 0.88rem;
+	line-height: 1.6;
+	color: var(--t-text-muted);
+}
+
+.handoff__cta {
+	display: inline-flex;
+	align-items: center;
+	gap: 0.5rem;
+	margin-block-start: 1.15rem;
+	padding: 0.55rem 1.1rem;
+	border: 0;
+	border-radius: 0.5rem;
+	background: var(--t-accent);
+	font-family: var(--t-font-heading);
+	font-size: 0.92rem;
+	font-weight: 600;
+	text-decoration: none;
+	color: var(--t-on-accent);
+	transition: translate 0.2s ease, box-shadow 0.2s ease, filter 0.2s ease;
+}
+
+.handoff__cta:hover {
+	translate: 0 -1px;
+	filter: brightness(1.06);
+	box-shadow: 0 6px 18px rgba(var(--t-accent-rgb), 0.3);
+	color: var(--t-on-accent);
+	text-decoration: none;
+}
+
+.handoff__cta:focus-visible {
+	outline: 2px solid var(--t-accent);
+	outline-offset: 3px;
+}
+
+/* The arrow leads the way out on hover — the one gesture in the panel that
+   says "onward" rather than "look at me". */
+.handoff__cta-arrow {
+	transition: translate 0.2s ease;
+}
+
+.handoff__cta:hover .handoff__cta-arrow {
+	translate: 3px 0;
+}
+
+@media (prefers-reduced-motion: reduce) {
+	.handoff__glow {
+		animation: none;
+		opacity: 0.8;
+	}
+
+	.handoff__cta,
+	.handoff__cta-arrow {
+		transition: none;
+	}
+
+	.handoff__cta:hover {
+		translate: none;
+	}
+}
+</style>

@@ -1,0 +1,1400 @@
+---
+/**
+ * The announcements board.
+ *
+ * Everything on this page comes from src/content/announcements/*.md — an admin
+ * writes one markdown file per post and the card, the pill, the date, the NEW
+ * badge and the popup are all derived from its frontmatter. Nothing here has to
+ * be edited to publish, which is the whole point of the collection.
+ *
+ * Cards carry only the summary; the full markdown body is rendered at build
+ * time into a hidden node and cloned into a single shared dialog on click, so
+ * the page ships one dialog rather than one per post.
+ */
+import { getCollection, render } from 'astro:content';
+
+interface Props {
+	/** Show only the newest N posts — used if this is ever embedded on a hub page. */
+	limit?: number;
+	/** Hide the category filter row even when there is more than one category. */
+	filters?: boolean;
+}
+
+const { limit, filters = true } = Astro.props;
+
+const posts = await getCollection('announcements', ({ data }) => !data.draft);
+
+/* Pinned first, then newest first. Same rule the popup order follows. */
+posts.sort((a, b) => {
+	if (a.data.pinned !== b.data.pinned) return a.data.pinned ? -1 : 1;
+	return b.data.date.getTime() - a.data.date.getTime();
+});
+
+const visible = limit ? posts.slice(0, limit) : posts;
+
+const NEW_FOR_DAYS = 7;
+const now = Date.now();
+
+const items = await Promise.all(
+	visible.map(async (entry) => {
+		const { Content } = await render(entry);
+		const ageDays = (now - entry.data.date.getTime()) / 86_400_000;
+		return {
+			entry,
+			Content,
+			/* Built here rather than in the browser so every visitor reads the
+			   same date regardless of their locale or clock. */
+			dateLabel: entry.data.date.toLocaleDateString('en-IN', {
+				day: 'numeric',
+				month: 'short',
+				year: 'numeric',
+			}),
+			isNew: ageDays >= 0 && ageDays <= NEW_FOR_DAYS,
+			slug: entry.data.category.trim().toLowerCase(),
+		};
+	})
+);
+
+/* Filter chips are only worth the row if there is something to filter. */
+const categories = [...new Set(items.map((i) => i.entry.data.category.trim()))];
+const showFilters = filters && categories.length > 1;
+---
+
+<section class="ann not-content" data-announcements>
+	{
+		showFilters && (
+			<div class="ann__filters" role="group" aria-label="Filter announcements by category">
+				<button class="ann__chip is-on" type="button" data-filter="*" aria-pressed="true">
+					All
+					<span class="ann__count">{items.length}</span>
+				</button>
+				{categories.map((cat) => (
+					<button
+						class="ann__chip"
+						type="button"
+						data-filter={cat.toLowerCase()}
+						data-cat={cat.toLowerCase()}
+						aria-pressed="false"
+					>
+						{cat}
+						<span class="ann__count">
+							{items.filter((i) => i.entry.data.category.trim() === cat).length}
+						</span>
+					</button>
+				))}
+			</div>
+		)
+	}
+
+	{
+		items.length === 0 ? (
+			<p class="ann__empty">No announcements yet — check back here once the competition starts.</p>
+		) : (
+			<ul class="ann__list">
+				{items.map((item) => (
+					<li class="ann__item" data-cat={item.slug}>
+						<article
+							class:list={['ann-card', { 'is-pinned': item.entry.data.pinned }]}
+							tabindex="0"
+							role="button"
+							aria-haspopup="dialog"
+							aria-label={`Read announcement: ${item.entry.data.title}`}
+							data-open={item.entry.id}
+							data-title={item.entry.data.title}
+							data-date={item.dateLabel}
+							data-category={item.entry.data.category.trim()}
+							data-author={item.entry.data.author ?? ''}
+							data-link={item.entry.data.link ?? ''}
+							data-link-label={item.entry.data.linkLabel ?? 'Open link'}
+						>
+							<div class="ann-card__top">
+								<span class="ann-pill" data-cat={item.slug}>
+									{item.entry.data.category.trim()}
+								</span>
+								{item.entry.data.pinned && (
+									<span class="ann-flag ann-flag--pin" title="Pinned">
+										Pinned
+									</span>
+								)}
+								{item.isNew && <span class="ann-flag ann-flag--new">New</span>}
+								<time class="ann-card__date" datetime={item.entry.data.date.toISOString()}>
+									{item.dateLabel}
+								</time>
+							</div>
+
+							<h3 class="ann-card__title">{item.entry.data.title}</h3>
+
+							{item.entry.data.summary && <p class="ann-card__summary">{item.entry.data.summary}</p>}
+
+							<div class="ann-card__foot">
+								{item.entry.data.author && (
+									<span class="ann-card__author">{item.entry.data.author}</span>
+								)}
+								<span class="ann-card__more">
+									Read more
+									<svg viewBox="0 0 16 16" aria-hidden="true" width="14" height="14">
+										<path
+											d="M5.5 3.5 10 8l-4.5 4.5"
+											fill="none"
+											stroke="currentColor"
+											stroke-width="1.8"
+											stroke-linecap="round"
+											stroke-linejoin="round"
+										/>
+									</svg>
+								</span>
+							</div>
+						</article>
+
+						{/* Build-time markdown, cloned into the dialog on click. */}
+						<div class="ann__source" id={`ann-src-${item.entry.id}`} hidden>
+							<item.Content />
+						</div>
+					</li>
+				))}
+			</ul>
+		)
+	}
+
+	<p class="ann__none" hidden>No announcements in this category.</p>
+
+	{/* Built by JS once it knows the page size and the active filter. Stays out
+	    of the way entirely when everything fits on one page. */}
+	<nav class="ann__pager" data-pager hidden aria-label="Announcement pages">
+		{/* Labelled explicitly: the visible text is hidden on mobile, where the
+		    button is icon-only. */}
+		<button class="ann__nav" type="button" data-page-prev aria-label="Previous page">
+			<svg viewBox="0 0 16 16" aria-hidden="true" width="14" height="14">
+				<path
+					d="M10 3.5 5.5 8l4.5 4.5"
+					fill="none"
+					stroke="currentColor"
+					stroke-width="1.8"
+					stroke-linecap="round"
+					stroke-linejoin="round"
+				/>
+			</svg>
+			<span class="ann__nav-label">Previous</span>
+		</button>
+
+		{/* Numbers on desktop, "Page 1 of 3" on a phone — same state, and CSS
+		    picks which one is showing. */}
+		<div class="ann__pages" data-page-numbers></div>
+		<span class="ann__status" data-page-status aria-hidden="true"></span>
+
+		<button class="ann__nav" type="button" data-page-next aria-label="Next page">
+			<span class="ann__nav-label">Next</span>
+			<svg viewBox="0 0 16 16" aria-hidden="true" width="14" height="14">
+				<path
+					d="M6 3.5 10.5 8 6 12.5"
+					fill="none"
+					stroke="currentColor"
+					stroke-width="1.8"
+					stroke-linecap="round"
+					stroke-linejoin="round"
+				/>
+			</svg>
+		</button>
+	</nav>
+
+	{/* Announced to screen readers on every page change. */}
+	<p class="ann__sr" role="status" aria-live="polite" data-page-live></p>
+</section>
+
+<noscript>
+	<style>
+		/* No script means no pager, so show every card rather than stranding the
+		   reader on a page one they cannot leave. */
+		.ann__list > .ann__item {
+			display: revert !important;
+		}
+	</style>
+</noscript>
+
+<div class="ann-modal" data-ann-modal hidden>
+	<div class="ann-modal__backdrop" data-ann-close></div>
+	<div
+		class="ann-modal__panel"
+		role="dialog"
+		aria-modal="true"
+		aria-labelledby="ann-modal-title"
+		tabindex="-1"
+	>
+		<span class="ann-modal__grip" aria-hidden="true"></span>
+
+		<button class="ann-modal__close" type="button" data-ann-close aria-label="Close announcement">
+			<svg viewBox="0 0 16 16" aria-hidden="true" width="16" height="16">
+				<path
+					d="M4 4l8 8M12 4l-8 8"
+					fill="none"
+					stroke="currentColor"
+					stroke-width="1.9"
+					stroke-linecap="round"
+				/>
+			</svg>
+		</button>
+
+		<header class="ann-modal__head">
+			<div class="ann-modal__meta">
+				<span class="ann-pill" data-ann-pill></span>
+				<time class="ann-modal__date" data-ann-date></time>
+			</div>
+			<h2 class="ann-modal__title" id="ann-modal-title" data-ann-title></h2>
+			<p class="ann-modal__author" data-ann-author hidden></p>
+		</header>
+
+		<div class="ann-modal__body" data-ann-body></div>
+
+		<footer class="ann-modal__foot" data-ann-foot hidden>
+			<a class="ann-modal__cta" data-ann-link href="#" target="_blank" rel="noopener noreferrer"></a>
+		</footer>
+	</div>
+</div>
+
+<style>
+	/* ---------- board ---------- */
+
+	.ann {
+		margin: 1.5rem 0 2rem;
+		/* Clears the fixed site header when go() scrolls the board into view. */
+		scroll-margin-top: 5rem;
+	}
+
+	.ann__filters {
+		display: flex;
+		flex-wrap: wrap;
+		gap: 0.5rem;
+		margin-bottom: 1.5rem;
+	}
+
+	.ann__chip {
+		display: inline-flex;
+		align-items: center;
+		gap: 0.45rem;
+		padding: 0.4rem 0.85rem;
+		font: inherit;
+		font-size: 0.85rem;
+		font-weight: 600;
+		line-height: 1.2;
+		color: var(--t-text-muted);
+		background: rgba(var(--t-raise-rgb), 0.35);
+		border: 1px solid var(--t-border);
+		border-radius: 999px;
+		cursor: pointer;
+		transition: color 0.2s, background 0.2s, border-color 0.2s;
+	}
+
+	.ann__chip:hover {
+		color: var(--t-text-strong);
+		border-color: var(--t-border-strong);
+		background: rgba(var(--t-raise-rgb), 0.6);
+	}
+
+	.ann__chip.is-on {
+		color: var(--t-on-accent);
+		background: var(--t-accent);
+		border-color: var(--t-accent);
+	}
+
+	.ann__count {
+		font-size: 0.72rem;
+		font-weight: 700;
+		padding: 0.05rem 0.4rem;
+		border-radius: 999px;
+		background: rgba(var(--t-line-rgb), 0.14);
+	}
+
+	.ann__chip.is-on .ann__count {
+		background: rgba(var(--t-surface-rgb), 0.28);
+	}
+
+	.ann__list {
+		list-style: none;
+		margin: 0;
+		padding: 0;
+		display: grid;
+		grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+		gap: 1rem;
+	}
+
+	.ann__item.is-hidden {
+		display: none;
+	}
+
+	/* Page one, before the script runs — otherwise all thirteen cards paint and
+	   then collapse to six. JS drops `data-ready` on the list once it owns the
+	   slicing, and the <noscript> block below restores the full list for anyone
+	   without JS, who has no pager to reach page two with. */
+	.ann__list:not([data-ready]) > .ann__item:nth-child(n + 7) {
+		display: none;
+	}
+
+	.ann__empty,
+	.ann__none {
+		margin: 0;
+		padding: 2rem 1.25rem;
+		text-align: center;
+		color: var(--t-text-muted);
+		background: rgba(var(--t-raise-rgb), 0.25);
+		border: 1px dashed var(--t-border);
+		border-radius: 1rem;
+	}
+
+	.ann__none:not([hidden]) {
+		margin-top: 1rem;
+	}
+
+	/* ---------- pager ---------- */
+
+	.ann__pager {
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		/* Wider than the gap between numbers, so the arrows read as their own
+		   group rather than as two more digits. */
+		gap: 0.75rem;
+		margin-top: 1.75rem;
+	}
+
+	.ann__pager[hidden] {
+		display: none;
+	}
+
+	/* Pills, matching the filter chips above — the pager is the same kind of
+	   control, so it should not introduce a second button shape. */
+	.ann__nav {
+		display: inline-flex;
+		align-items: center;
+		gap: 0.3rem;
+		height: 2.1rem;
+		padding: 0 0.9rem;
+		font: inherit;
+		font-size: 0.85rem;
+		font-weight: 600;
+		line-height: 1;
+		color: var(--t-text-muted);
+		background: rgba(var(--t-raise-rgb), 0.35);
+		border: 1px solid var(--t-border);
+		border-radius: 999px;
+		cursor: pointer;
+		transition: color 0.2s, background 0.2s, border-color 0.2s, opacity 0.2s;
+	}
+
+	/* Numbers are set on a circle: equal width and height so 1 and 12 don't
+	   produce differently-sized buttons, and no border — a row of outlined boxes
+	   is what made this look like a table of contents.
+
+	   :global is required, not stylistic. These buttons are built by JS, so they
+	   never receive Astro's scoping attribute and a plain .ann__page selector
+	   misses them entirely — which is why they were rendering as raw browser
+	   default buttons. Nesting under .ann__pages keeps the global reach to the
+	   pager's own children. */
+	.ann__pages :global(.ann__page) {
+		display: inline-flex;
+		align-items: center;
+		justify-content: center;
+		width: 2.1rem;
+		height: 2.1rem;
+		padding: 0;
+		font: inherit;
+		font-size: 0.85rem;
+		font-weight: 600;
+		font-variant-numeric: tabular-nums;
+		line-height: 1;
+		color: var(--t-text-muted);
+		background: transparent;
+		border: none;
+		border-radius: 50%;
+		cursor: pointer;
+		transition: color 0.2s, background 0.2s;
+	}
+
+	.ann__nav:hover:not(:disabled) {
+		color: var(--t-text-strong);
+		border-color: var(--t-border-strong);
+		background: rgba(var(--t-raise-rgb), 0.65);
+	}
+
+	.ann__pages :global(.ann__page:hover:not([aria-current='page'])) {
+		color: var(--t-text-strong);
+		background: rgba(var(--t-line-rgb), 0.1);
+	}
+
+	.ann__nav:disabled {
+		opacity: 0.35;
+		cursor: default;
+	}
+
+	.ann__pages :global(.ann__page[aria-current='page']) {
+		color: var(--t-on-accent);
+		background: var(--t-accent);
+		cursor: default;
+	}
+
+	.ann__pages {
+		display: flex;
+		align-items: center;
+		gap: 0.15rem;
+	}
+
+	/* The gap marker between non-adjacent page numbers, e.g. 1 … 4 5 6 … 12.
+	   Also JS-built, so also global. */
+	.ann__pages :global(.ann__gap) {
+		width: 1.1rem;
+		text-align: center;
+		color: var(--t-text-faint);
+		user-select: none;
+	}
+
+	/* Desktop shows the numbers instead. */
+	.ann__status {
+		display: none;
+		font-size: 0.85rem;
+		font-weight: 600;
+		color: var(--t-text-muted);
+		white-space: nowrap;
+	}
+
+	/* Visible to screen readers only. */
+	.ann__sr {
+		position: absolute;
+		width: 1px;
+		height: 1px;
+		margin: -1px;
+		padding: 0;
+		overflow: hidden;
+		clip-path: inset(50%);
+		white-space: nowrap;
+	}
+
+	/* ---------- card ---------- */
+
+	.ann-card {
+		display: flex;
+		flex-direction: column;
+		gap: 0.6rem;
+		height: 100%;
+		padding: 1.15rem 1.25rem;
+		background: rgba(var(--t-raise-rgb), 0.35);
+		border: 1px solid var(--t-border);
+		border-radius: 1rem;
+		box-shadow: 0 4px 18px rgba(var(--t-line-rgb), 0.12);
+		cursor: pointer;
+		transition: border-color 0.25s, box-shadow 0.25s, background 0.25s, transform 0.25s;
+	}
+
+	.ann-card:hover,
+	.ann-card:focus-visible {
+		border-color: var(--t-border-strong);
+		background: rgba(var(--t-raise-rgb), 0.6);
+		box-shadow: 0 8px 26px rgba(var(--t-line-rgb), 0.2);
+		transform: translateY(-2px);
+		outline: none;
+	}
+
+	.ann-card:focus-visible {
+		border-color: var(--t-accent);
+		box-shadow: 0 0 0 2px rgba(var(--t-accent-rgb), 0.45);
+	}
+
+	/* A pinned post reads as pinned before you get to the badge. */
+	.ann-card.is-pinned {
+		border-color: rgba(var(--t-accent-rgb), 0.45);
+		background: linear-gradient(
+			135deg,
+			rgba(var(--t-accent-rgb), 0.1),
+			rgba(var(--t-raise-rgb), 0.45)
+		);
+	}
+
+	.ann-card__top {
+		display: flex;
+		flex-wrap: wrap;
+		align-items: center;
+		gap: 0.45rem;
+	}
+
+	.ann-card__date {
+		margin-left: auto;
+		font-size: 0.78rem;
+		font-weight: 600;
+		color: var(--t-text-faint);
+		white-space: nowrap;
+	}
+
+	.ann-card__title {
+		margin: 0;
+		font-family: var(--t-font-heading);
+		font-size: 1.1rem;
+		font-weight: 700;
+		line-height: 1.35;
+		color: var(--t-text-strong);
+	}
+
+	.ann-card__summary {
+		margin: 0;
+		font-size: 0.95rem;
+		line-height: 1.6;
+		color: var(--t-text);
+		/* Keeps every card in a row the same shape however long the summary is. */
+		display: -webkit-box;
+		-webkit-line-clamp: 3;
+		line-clamp: 3;
+		-webkit-box-orient: vertical;
+		overflow: hidden;
+	}
+
+	.ann-card__foot {
+		display: flex;
+		align-items: center;
+		gap: 0.75rem;
+		margin-top: auto;
+		padding-top: 0.35rem;
+	}
+
+	.ann-card__author {
+		font-size: 0.8rem;
+		color: var(--t-text-faint);
+	}
+
+	.ann-card__more {
+		display: inline-flex;
+		align-items: center;
+		gap: 0.25rem;
+		margin-left: auto;
+		font-size: 0.85rem;
+		font-weight: 700;
+		color: var(--t-link);
+	}
+
+	.ann-card:hover .ann-card__more svg {
+		transform: translateX(3px);
+	}
+
+	.ann-card__more svg {
+		transition: transform 0.2s;
+	}
+
+	/* ---------- pills & flags ---------- */
+
+	.ann-pill {
+		display: inline-flex;
+		align-items: center;
+		padding: 0.2rem 0.6rem;
+		font-size: 0.72rem;
+		font-weight: 700;
+		text-transform: uppercase;
+		letter-spacing: 0.06em;
+		border-radius: 999px;
+		color: rgb(var(--cat-rgb));
+		background: rgba(var(--cat-rgb), 0.16);
+		border: 1px solid rgba(var(--cat-rgb), 0.4);
+
+		/* Neutral, and deliberately not the accent. A category the rules below
+		   don't recognise used to fall back to var(--t-accent-rgb), which is the
+		   exact colour Task uses in both themes — so `category: Warning` rendered
+		   as a Task pill, pixel for pixel. Unrecognised now reads as
+		   uncategorised. Declared on .ann-pill rather than as a var() fallback so
+		   it also covers the dialog pill, whose data-cat is set at runtime. */
+		--cat-rgb: 189, 193, 198;
+	}
+
+	:global([data-theme='light']) .ann-pill {
+		--cat-rgb: 95, 99, 104;
+	}
+
+	/* ── Category hues ──
+	   These are not picked per theme by eye. Each category takes one named
+	   Material ramp and reads it the way the callouts in android.css do: the
+	   hue's 200 in the dark appearance, its 900 in the light one. The four
+	   ramps below are literally the --aside-*-fg values from android.css, so a
+	   Task pill is the same blue as a note callout and an Alert pill the same
+	   red as a danger one.
+
+	   That file's own comment explains why this matters: choosing each
+	   appearance separately is what once left "caution wearing red text on an
+	   orange fill — so a warning read as an error". Deriving both ends from one
+	   ramp makes a category unable to change meaning between appearances.
+
+	   Following this project's aside naming (danger renders as "Warning"),
+	   warning belongs to the red ramp alongside alert, and caution to amber
+	   alongside deadline. Synonyms are grouped so a plausible word an admin
+	   types lands on the right hue instead of on the neutral.
+
+	   Measured pill contrast (text on its own 16% tint, over the page, card and
+	   dialog surfaces — worst case of the three) is in the comment per ramp.
+	   4.5:1 is the floor. */
+
+	/* Blue — --aside-note-fg. dark 5.88:1 · light 5.85:1 */
+	[data-cat='task'],
+	[data-cat='note'],
+	[data-cat='info'] {
+		--cat-rgb: 174, 203, 250;
+	}
+	/* Green — --aside-tip-fg. dark 6.10:1 · light 5.41:1 */
+	[data-cat='update'],
+	[data-cat='success'],
+	[data-cat='released'],
+	[data-cat='resolved'] {
+		--cat-rgb: 168, 218, 181;
+	}
+	/* Amber — --aside-caution-fg. dark 7.13:1 · light 4.98:1 */
+	[data-cat='deadline'],
+	[data-cat='caution'],
+	[data-cat='reminder'] {
+		--cat-rgb: 253, 226, 147;
+	}
+	/* Red — --aside-danger-fg. dark 5.48:1 · light 5.64:1 */
+	[data-cat='alert'],
+	[data-cat='warning'],
+	[data-cat='danger'],
+	[data-cat='urgent'],
+	[data-cat='important'] {
+		--cat-rgb: 246, 174, 169;
+	}
+	/* Purple — the one hue with no callout equivalent, so it is Material Purple
+	   200/900 built by the same rule. dark 5.39:1 · light 6.54:1 */
+	[data-cat='event'],
+	[data-cat='webinar'],
+	[data-cat='session'] {
+		--cat-rgb: 215, 174, 251;
+	}
+	/* Grey — matches the unrecognised-category neutral above, since "General"
+	   and "unlabelled" mean the same thing here. dark 5.47:1 · light 4.68:1 */
+	[data-cat='general'],
+	[data-cat='misc'] {
+		--cat-rgb: 189, 193, 198;
+	}
+
+	:global([data-theme='light']) [data-cat='task'],
+	:global([data-theme='light']) [data-cat='note'],
+	:global([data-theme='light']) [data-cat='info'] {
+		--cat-rgb: 23, 78, 166;
+	}
+	:global([data-theme='light']) [data-cat='update'],
+	:global([data-theme='light']) [data-cat='success'],
+	:global([data-theme='light']) [data-cat='released'],
+	:global([data-theme='light']) [data-cat='resolved'] {
+		--cat-rgb: 13, 101, 45;
+	}
+	:global([data-theme='light']) [data-cat='deadline'],
+	:global([data-theme='light']) [data-cat='caution'],
+	:global([data-theme='light']) [data-cat='reminder'] {
+		--cat-rgb: 143, 76, 0;
+	}
+	:global([data-theme='light']) [data-cat='alert'],
+	:global([data-theme='light']) [data-cat='warning'],
+	:global([data-theme='light']) [data-cat='danger'],
+	:global([data-theme='light']) [data-cat='urgent'],
+	:global([data-theme='light']) [data-cat='important'] {
+		--cat-rgb: 165, 14, 14;
+	}
+	:global([data-theme='light']) [data-cat='event'],
+	:global([data-theme='light']) [data-cat='webinar'],
+	:global([data-theme='light']) [data-cat='session'] {
+		--cat-rgb: 104, 29, 168;
+	}
+	:global([data-theme='light']) [data-cat='general'],
+	:global([data-theme='light']) [data-cat='misc'] {
+		--cat-rgb: 95, 99, 104;
+	}
+
+	.ann-flag {
+		display: inline-flex;
+		align-items: center;
+		padding: 0.15rem 0.5rem;
+		font-size: 0.66rem;
+		font-weight: 800;
+		text-transform: uppercase;
+		letter-spacing: 0.08em;
+		border-radius: 999px;
+	}
+
+	.ann-flag--new {
+		color: var(--t-on-accent);
+		background: var(--t-accent);
+	}
+
+	.ann-flag--pin {
+		color: var(--t-text-muted);
+		background: rgba(var(--t-line-rgb), 0.12);
+		border: 1px solid var(--t-border);
+	}
+
+	/* ---------- popup ---------- */
+
+	.ann-modal {
+		position: fixed;
+		inset: 0;
+		/* Above the whole fixed-chrome band in custom.css — header (10000/10001),
+		   scroll-to-top (9999), mini-player (9998), sidebar toggle (9997) — so
+		   the backdrop dims the page instead of leaving them floating on it. */
+		z-index: 10002;
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		padding: 1.5rem;
+	}
+
+	.ann-modal[hidden] {
+		display: none;
+	}
+
+	.ann-modal__backdrop {
+		position: absolute;
+		inset: 0;
+		background: rgba(var(--t-ink-rgb), 0.6);
+		backdrop-filter: blur(3px);
+		animation: ann-fade 0.2s ease;
+	}
+
+	.ann-modal__panel {
+		position: relative;
+		z-index: 1;
+		width: min(720px, 100%);
+		max-height: min(80vh, 720px);
+		display: flex;
+		flex-direction: column;
+		padding: 1.75rem;
+		background: rgb(var(--t-surface-2-rgb));
+		border: 1px solid var(--t-border-strong);
+		border-radius: 1.25rem;
+		box-shadow: 0 24px 60px rgba(var(--t-ink-rgb), 0.45);
+		animation: ann-pop 0.22s cubic-bezier(0.2, 0.9, 0.3, 1);
+		overflow: hidden;
+	}
+
+	.ann-modal__panel:focus {
+		outline: none;
+	}
+
+	/* Only earns its place as a sheet handle on mobile. */
+	.ann-modal__grip {
+		display: none;
+	}
+
+	.ann-modal__close {
+		position: absolute;
+		top: 0.9rem;
+		right: 0.9rem;
+		display: inline-flex;
+		align-items: center;
+		justify-content: center;
+		width: 2rem;
+		height: 2rem;
+		padding: 0;
+		color: var(--t-text-muted);
+		background: rgba(var(--t-raise-rgb), 0.5);
+		border: 1px solid var(--t-border);
+		border-radius: 50%;
+		cursor: pointer;
+		transition: color 0.2s, background 0.2s, border-color 0.2s;
+	}
+
+	.ann-modal__close:hover {
+		color: var(--t-text-strong);
+		background: rgba(var(--t-raise-rgb), 0.9);
+		border-color: var(--t-border-strong);
+	}
+
+	.ann-modal__head {
+		flex-shrink: 0;
+		padding-right: 2.5rem;
+	}
+
+	.ann-modal__meta {
+		display: flex;
+		align-items: center;
+		gap: 0.6rem;
+		margin-bottom: 0.6rem;
+	}
+
+	.ann-modal__date {
+		font-size: 0.82rem;
+		font-weight: 600;
+		color: var(--t-text-faint);
+	}
+
+	.ann-modal__title {
+		margin: 0;
+		font-family: var(--t-font-heading);
+		font-size: 1.5rem;
+		font-weight: 700;
+		line-height: 1.3;
+		color: var(--t-text-strong);
+	}
+
+	.ann-modal__author {
+		margin: 0.4rem 0 0;
+		font-size: 0.85rem;
+		color: var(--t-text-muted);
+	}
+
+	.ann-modal__body {
+		flex: 1;
+		min-height: 0;
+		margin-top: 1.1rem;
+		padding-top: 1.1rem;
+		border-top: 1px solid var(--t-border);
+		overflow-y: auto;
+		overscroll-behavior: contain;
+		color: var(--t-text);
+		line-height: 1.7;
+	}
+
+	/* The body is cloned markdown, so it carries no scope attribute — these have
+	   to be global to reach it. */
+	.ann-modal__body :global(> *:first-child) {
+		margin-top: 0;
+	}
+	.ann-modal__body :global(p),
+	.ann-modal__body :global(ul),
+	.ann-modal__body :global(ol) {
+		margin: 0 0 1rem;
+	}
+	.ann-modal__body :global(ul),
+	.ann-modal__body :global(ol) {
+		padding-left: 1.35rem;
+	}
+	.ann-modal__body :global(li) {
+		margin: 0.3rem 0;
+	}
+	.ann-modal__body :global(h2),
+	.ann-modal__body :global(h3),
+	.ann-modal__body :global(h4) {
+		margin: 1.4rem 0 0.6rem;
+		font-family: var(--t-font-heading);
+		font-weight: 700;
+		line-height: 1.35;
+		color: var(--t-text-strong);
+	}
+	.ann-modal__body :global(h2) {
+		font-size: 1.2rem;
+	}
+	.ann-modal__body :global(h3) {
+		font-size: 1.05rem;
+	}
+	.ann-modal__body :global(h4) {
+		font-size: 0.95rem;
+	}
+	.ann-modal__body :global(a) {
+		color: var(--t-link);
+		text-decoration: underline;
+		text-underline-offset: 2px;
+	}
+	.ann-modal__body :global(strong) {
+		color: var(--t-text-strong);
+	}
+	.ann-modal__body :global(img) {
+		max-width: 100%;
+		height: auto;
+		border-radius: 0.75rem;
+	}
+	.ann-modal__body :global(code) {
+		padding: 0.12em 0.4em;
+		font-family: var(--t-font-mono);
+		font-size: 0.88em;
+		background: rgba(var(--t-line-rgb), 0.12);
+		border-radius: 0.35rem;
+	}
+	.ann-modal__body :global(pre) {
+		padding: 0.9rem 1rem;
+		background: var(--t-code-bg);
+		color: var(--t-code-text);
+		border-radius: 0.75rem;
+		overflow-x: auto;
+	}
+	.ann-modal__body :global(pre code) {
+		padding: 0;
+		background: none;
+	}
+	.ann-modal__body :global(blockquote) {
+		margin: 0 0 1rem;
+		padding: 0.2rem 0 0.2rem 1rem;
+		border-left: 3px solid var(--t-accent);
+		color: var(--t-text-muted);
+	}
+	.ann-modal__body :global(table) {
+		width: 100%;
+		border-collapse: collapse;
+		font-size: 0.92rem;
+	}
+	.ann-modal__body :global(th),
+	.ann-modal__body :global(td) {
+		padding: 0.5rem 0.65rem;
+		border: 1px solid var(--t-border);
+		text-align: left;
+	}
+	.ann-modal__body :global(hr) {
+		margin: 1.25rem 0;
+		border: none;
+		border-top: 1px solid var(--t-border);
+	}
+
+	.ann-modal__foot {
+		flex-shrink: 0;
+		margin-top: 1.1rem;
+		padding-top: 1rem;
+		border-top: 1px solid var(--t-border);
+	}
+
+	.ann-modal__cta {
+		display: inline-flex;
+		align-items: center;
+		padding: 0.55rem 1.1rem;
+		font-size: 0.9rem;
+		font-weight: 700;
+		color: var(--t-on-accent);
+		background: var(--t-accent);
+		border-radius: 999px;
+		text-decoration: none;
+		transition: background 0.2s;
+	}
+
+	.ann-modal__cta:hover {
+		background: var(--t-accent-strong);
+	}
+
+	@keyframes ann-fade {
+		from {
+			opacity: 0;
+		}
+	}
+
+	@keyframes ann-pop {
+		from {
+			opacity: 0;
+			transform: translateY(12px) scale(0.98);
+		}
+	}
+
+	/* ---------- mobile ---------- */
+
+	@media (max-width: 720px) {
+		.ann__list {
+			grid-template-columns: 1fr;
+			gap: 0.7rem;
+		}
+
+		/* Matches the mobile page size of four. */
+		.ann__list:not([data-ready]) > .ann__item:nth-child(n + 5) {
+			display: none;
+		}
+
+		/* A pager under four cards means scrolling a screen to change page, and
+		   then scrolling back to read. Lifting it next to the filters puts every
+		   control in one cluster at the top, reachable without scrolling at all.
+		   The list keeps its DOM position, so only the visual order moves. */
+		.ann {
+			display: flex;
+			flex-direction: column;
+		}
+
+		.ann__filters {
+			order: 1;
+			margin-bottom: 0.85rem;
+		}
+
+		.ann__pager {
+			order: 2;
+			justify-content: space-between;
+			gap: 0.4rem;
+			margin: 0 0 1.1rem;
+			padding-bottom: 1rem;
+			border-bottom: 1px solid var(--t-border);
+		}
+
+		.ann__list,
+		.ann__empty {
+			order: 3;
+		}
+
+		.ann__none {
+			order: 4;
+		}
+
+		/* Numbers on a phone too — going page by page through four pages to reach
+		   the last one is the thing that made this tedious. The collapsing
+		   1 … 4 5 6 … 12 row is what keeps them fitting. */
+		.ann__pages {
+			display: flex;
+			gap: 0.1rem;
+		}
+
+		.ann__status {
+			display: none;
+		}
+
+		/* Icon-only arrows: the labels are what would push the numbers off a
+		   narrow screen, and the chevrons carry the meaning on their own. */
+		.ann__nav-label {
+			display: none;
+		}
+
+		.ann__nav {
+			width: 2.1rem;
+			padding: 0;
+			justify-content: center;
+		}
+
+		/* Denser card: the summary is a teaser, and the popup holds the detail —
+		   so on a phone it earns two lines, not three. */
+		.ann-card {
+			gap: 0.45rem;
+			padding: 0.85rem 1rem;
+			border-radius: 0.85rem;
+		}
+
+		.ann-card__title {
+			font-size: 1rem;
+		}
+
+		.ann-card__summary {
+			font-size: 0.88rem;
+			line-height: 1.5;
+			-webkit-line-clamp: 2;
+			line-clamp: 2;
+		}
+
+		.ann-card__foot {
+			padding-top: 0.15rem;
+		}
+
+		.ann-card__author,
+		.ann-card__more {
+			font-size: 0.78rem;
+		}
+
+		/* The lift on tap just fights the scroll window. */
+		.ann-card:hover {
+			transform: none;
+		}
+
+		.ann__filters {
+			/* One scrolling row beats a four-line wrap on a narrow screen. */
+			flex-wrap: nowrap;
+			overflow-x: auto;
+			scrollbar-width: none;
+			margin-inline: -0.5rem;
+			padding: 0.25rem 0.5rem;
+		}
+
+		.ann__filters::-webkit-scrollbar {
+			display: none;
+		}
+
+		.ann__chip {
+			flex: 0 0 auto;
+		}
+
+		/* Bottom sheet: thumb-reachable, and it can use the full width. */
+		.ann-modal {
+			align-items: flex-end;
+			padding: 0;
+		}
+
+		.ann-modal__panel {
+			width: 100%;
+			max-height: 88vh;
+			padding: 1rem 1.15rem 1.5rem;
+			border-radius: 1.25rem 1.25rem 0 0;
+			border-bottom: none;
+			animation: ann-sheet 0.26s cubic-bezier(0.2, 0.9, 0.3, 1);
+		}
+
+		.ann-modal__grip {
+			display: block;
+			width: 2.5rem;
+			height: 0.25rem;
+			margin: 0 auto 0.9rem;
+			background: var(--t-border-strong);
+			border-radius: 999px;
+		}
+
+		.ann-modal__close {
+			top: 0.75rem;
+			right: 0.75rem;
+		}
+
+		.ann-modal__title {
+			font-size: 1.25rem;
+		}
+
+		.ann-modal__cta {
+			width: 100%;
+			justify-content: center;
+		}
+	}
+
+	@keyframes ann-sheet {
+		from {
+			transform: translateY(100%);
+		}
+	}
+
+	@media (prefers-reduced-motion: reduce) {
+		.ann-card,
+		.ann-card__more svg,
+		.ann-modal__panel,
+		.ann-modal__backdrop {
+			transition: none;
+			animation: none;
+		}
+
+		.ann-card:hover {
+			transform: none;
+		}
+	}
+</style>
+
+<script>
+	/**
+	 * One dialog for the whole page: the card click reads the post's metadata off
+	 * its data-* attributes and clones the matching build-time markdown in.
+	 *
+	 * Runs on every Starlight view transition, so it re-binds after navigation
+	 * and only ever keeps a single dialog attached to <body>.
+	 */
+	/** Set once the document-level Escape handler exists, which outlives navigation. */
+	let escapeBound = false;
+	/** Restored when the dialog closes, so keyboard users land back on the card. */
+	let lastFocused: HTMLElement | null = null;
+
+	function closeAnnouncement() {
+		const modal = document.querySelector<HTMLElement>('[data-ann-modal]');
+		if (!modal || modal.hidden) return;
+		modal.hidden = true;
+		document.documentElement.style.overflow = '';
+		modal.querySelector<HTMLElement>('[data-ann-body]')?.replaceChildren();
+		lastFocused?.focus();
+		lastFocused = null;
+	}
+
+	function initAnnouncements() {
+		const board = document.querySelector<HTMLElement>('[data-announcements]');
+		if (!board || board.dataset.annReady) return;
+		board.dataset.annReady = '1';
+
+		/* The dialog is position:fixed, so it must escape any transformed or
+		   clipped ancestor in the article. Extras are dropped — the board renders
+		   one dialog per instance and the page needs exactly one. */
+		const dialogs = document.querySelectorAll<HTMLElement>('[data-ann-modal]');
+		dialogs.forEach((node, i) => {
+			if (i > 0) node.remove();
+			else if (node.parentElement !== document.body) document.body.appendChild(node);
+		});
+
+		const modal = document.querySelector<HTMLElement>('[data-ann-modal]');
+		if (!modal) return;
+
+		const panel = modal.querySelector<HTMLElement>('.ann-modal__panel')!;
+		const pill = modal.querySelector<HTMLElement>('[data-ann-pill]')!;
+		const dateEl = modal.querySelector<HTMLElement>('[data-ann-date]')!;
+		const titleEl = modal.querySelector<HTMLElement>('[data-ann-title]')!;
+		const authorEl = modal.querySelector<HTMLElement>('[data-ann-author]')!;
+		const bodyEl = modal.querySelector<HTMLElement>('[data-ann-body]')!;
+		const footEl = modal.querySelector<HTMLElement>('[data-ann-foot]')!;
+		const linkEl = modal.querySelector<HTMLAnchorElement>('[data-ann-link]')!;
+		const closeBtn = modal.querySelector<HTMLElement>('.ann-modal__close')!;
+
+		function open(card: HTMLElement) {
+			const id = card.dataset.open ?? '';
+			const source = document.getElementById(`ann-src-${id}`);
+			const category = card.dataset.category ?? 'General';
+
+			pill.textContent = category;
+			pill.dataset.cat = category.toLowerCase();
+			dateEl.textContent = card.dataset.date ?? '';
+			titleEl.textContent = card.dataset.title ?? '';
+
+			const author = card.dataset.author ?? '';
+			authorEl.textContent = author ? `Posted by ${author}` : '';
+			authorEl.hidden = !author;
+
+			bodyEl.replaceChildren();
+			if (source) {
+				for (const child of Array.from(source.children)) {
+					bodyEl.appendChild(child.cloneNode(true));
+				}
+			}
+			bodyEl.scrollTop = 0;
+
+			const link = card.dataset.link ?? '';
+			if (link) {
+				linkEl.href = link;
+				linkEl.textContent = card.dataset.linkLabel || 'Open link';
+			}
+			footEl.hidden = !link;
+
+			lastFocused = document.activeElement as HTMLElement | null;
+			modal.hidden = false;
+			/* Stops the page behind the sheet from scrolling with it. */
+			document.documentElement.style.overflow = 'hidden';
+			closeBtn.focus();
+		}
+
+		board.addEventListener('click', (e) => {
+			const card = (e.target as HTMLElement).closest<HTMLElement>('[data-open]');
+			if (card) open(card);
+		});
+
+		board.addEventListener('keydown', (e) => {
+			if (e.key !== 'Enter' && e.key !== ' ') return;
+			const card = (e.target as HTMLElement).closest<HTMLElement>('[data-open]');
+			if (!card) return;
+			e.preventDefault();
+			open(card);
+		});
+
+		modal.addEventListener('click', (e) => {
+			if ((e.target as HTMLElement).closest('[data-ann-close]')) closeAnnouncement();
+		});
+
+		if (!escapeBound) {
+			document.addEventListener('keydown', (e) => {
+				if (e.key === 'Escape') closeAnnouncement();
+			});
+			escapeBound = true;
+		}
+
+		/* Keeps Tab inside the sheet while it is open. */
+		panel.addEventListener('keydown', (e) => {
+			if (e.key !== 'Tab') return;
+			const focusable = panel.querySelectorAll<HTMLElement>(
+				'a[href], button:not([disabled]), [tabindex]:not([tabindex="-1"])'
+			);
+			if (focusable.length === 0) return;
+			const first = focusable[0];
+			const last = focusable[focusable.length - 1];
+			if (e.shiftKey && document.activeElement === first) {
+				e.preventDefault();
+				last.focus();
+			} else if (!e.shiftKey && document.activeElement === last) {
+				e.preventDefault();
+				first.focus();
+			}
+		});
+
+		/* ---- filtering + pagination ----
+		   Both narrow the same list, so they run through one draw(): the filter
+		   decides which cards are eligible, the page decides which slice of those
+		   is on screen. Keeping them in one place is what stops the two from
+		   disagreeing — a filter that leaves 2 results while you are on page 3
+		   would otherwise render an empty board. */
+		const chips = board.querySelectorAll<HTMLElement>('[data-filter]');
+		const items = [...board.querySelectorAll<HTMLElement>('.ann__item')];
+		const noneEl = board.querySelector<HTMLElement>('.ann__none');
+		const pager = board.querySelector<HTMLElement>('[data-pager]');
+		const numbers = board.querySelector<HTMLElement>('[data-page-numbers]');
+		const status = board.querySelector<HTMLElement>('[data-page-status]');
+		const live = board.querySelector<HTMLElement>('[data-page-live]');
+		const prevBtn = board.querySelector<HTMLButtonElement>('[data-page-prev]');
+		const nextBtn = board.querySelector<HTMLButtonElement>('[data-page-next]');
+
+		const phone = window.matchMedia('(max-width: 720px)');
+		/* Four cards is about one screen on a phone; six is two full rows of the
+		   desktop grid. */
+		const pageSize = () => (phone.matches ? 4 : 6);
+
+		let filter = '*';
+		let page = 1;
+
+		function draw(announce = false) {
+			const matching = items.filter((li) => filter === '*' || li.dataset.cat === filter);
+			const size = pageSize();
+			const pages = Math.max(1, Math.ceil(matching.length / size));
+
+			/* Resizing across the breakpoint, or filtering down to fewer results,
+			   can strand you past the last page. */
+			page = Math.min(Math.max(1, page), pages);
+			const start = (page - 1) * size;
+
+			for (const li of items) {
+				const idx = matching.indexOf(li);
+				li.classList.toggle('is-hidden', idx < 0 || idx < start || idx >= start + size);
+			}
+
+			if (noneEl) noneEl.hidden = matching.length > 0;
+			if (pager) pager.hidden = matching.length <= size;
+			if (prevBtn) prevBtn.disabled = page === 1;
+			if (nextBtn) nextBtn.disabled = page === pages;
+			if (status) status.textContent = `Page ${page} of ${pages}`;
+			if (announce && live) {
+				live.textContent = `Page ${page} of ${pages}, ${matching.length} announcements`;
+			}
+
+			if (numbers) {
+				numbers.replaceChildren();
+				for (const n of pageNumbers(page, pages)) {
+					if (n === 0) {
+						const gap = document.createElement('span');
+						gap.className = 'ann__gap';
+						gap.textContent = '…';
+						numbers.appendChild(gap);
+						continue;
+					}
+					const b = document.createElement('button');
+					b.type = 'button';
+					b.className = 'ann__page';
+					b.textContent = String(n);
+					b.setAttribute('aria-label', `Go to page ${n}`);
+					if (n === page) b.setAttribute('aria-current', 'page');
+					b.addEventListener('click', () => go(n));
+					numbers.appendChild(b);
+				}
+			}
+		}
+
+		/* First page, last page, and a window around the current one. 0 is a gap
+		   marker, so 1 … 4 5 6 … 12 stays one row however many pages there are. */
+		function pageNumbers(current: number, total: number): number[] {
+			if (total <= 7) return Array.from({ length: total }, (_, i) => i + 1);
+			const out = new Set([1, total, current, current - 1, current + 1]);
+			const list = [...out].filter((n) => n >= 1 && n <= total).sort((a, b) => a - b);
+			const withGaps: number[] = [];
+			list.forEach((n, i) => {
+				if (i > 0 && n - list[i - 1] > 1) withGaps.push(0);
+				withGaps.push(n);
+			});
+			return withGaps;
+		}
+
+		function go(n: number) {
+			page = n;
+			draw(true);
+			/* Paging from the bottom of the list would otherwise leave you looking
+			   at the pager with the new cards off-screen above. */
+			if (board.getBoundingClientRect().top < 0) {
+				board.scrollIntoView({ behavior: 'smooth', block: 'start' });
+			}
+		}
+
+		prevBtn?.addEventListener('click', () => go(page - 1));
+		nextBtn?.addEventListener('click', () => go(page + 1));
+
+		chips.forEach((chip) => {
+			chip.addEventListener('click', () => {
+				filter = chip.dataset.filter ?? '*';
+				chips.forEach((c) => {
+					const on = c === chip;
+					c.classList.toggle('is-on', on);
+					c.setAttribute('aria-pressed', String(on));
+				});
+				/* A new filter is a new list — page 3 of the old one means nothing. */
+				page = 1;
+				draw(true);
+			});
+		});
+
+		/* The page size changes across the breakpoint, so the slice has to be
+		   recomputed when the viewport crosses it. */
+		phone.addEventListener('change', () => draw());
+
+		draw();
+		/* Hands slicing over from the CSS first-page fallback to draw(). */
+		board.querySelector('.ann__list')?.setAttribute('data-ready', '');
+	}
+
+	initAnnouncements();
+	document.addEventListener('astro:page-load', initAnnouncements);
+</script>

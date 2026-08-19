@@ -1,0 +1,230 @@
+---
+/**
+ * What success actually looks like, next to the step that produces it.
+ *
+ * Every check in Task 0 was previously described in prose — "you should see the
+ * talker publishing messages" — which leaves the student holding a terminal
+ * they can't compare against anything. This shows the real output, and gives
+ * the failure an exit: `fix` points at the troubleshooting entry for this
+ * specific step rather than at a general FAQ.
+ *
+ * `panes` covers the checks that span two terminals (the talker and listener
+ * are only meaningful as a pair), where the point is the relationship between
+ * the two windows, not either one alone.
+ */
+interface Pane {
+	label?: string;
+	cmd?: string;
+	expected?: string;
+}
+
+interface Props {
+	title?: string;
+	cmd?: string;
+	expected?: string;
+	panes?: Pane[];
+	/** Id of the `Fix` entry to jump to when the check fails. */
+	fix?: string;
+	/** For checks whose result is a window rather than text. */
+	note?: string;
+}
+
+const {
+	title = 'Check it worked',
+	cmd,
+	expected,
+	panes,
+	fix,
+	note,
+} = Astro.props;
+
+const columns: Pane[] = panes ?? [{ cmd, expected }];
+const hasSlot = Astro.slots.has('default');
+---
+
+<div class="verify not-content">
+	<div class="verify__head">
+		<svg class="verify__icon" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 11l3 3L22 4"></path><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"></path></svg>
+		<h3 class="verify__title">{title}</h3>
+	</div>
+
+	<div class={`verify__panes${columns.length > 1 ? ' verify__panes--split' : ''}`}>
+		{columns.map((pane) => (
+			<div class="verify__pane">
+				{pane.label && <p class="verify__pane-label">{pane.label}</p>}
+				{pane.cmd && (
+					<p class="verify__cmd">
+						<code>{pane.cmd}</code>
+					</p>
+				)}
+				{pane.expected && <pre class="verify__out"><code>{pane.expected}</code></pre>}
+			</div>
+		))}
+	</div>
+
+	{note && <p class="verify__note">{note}</p>}
+	{hasSlot && (
+		<div class="verify__extra">
+			<slot />
+		</div>
+	)}
+
+	{fix && (
+		<div class="verify__foot">
+			<a class="verify__fix" href={`#${fix}`}>
+				Didn't work?
+				<svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="5" y1="12" x2="19" y2="12"></line><polyline points="12 5 19 12 12 19"></polyline></svg>
+			</a>
+		</div>
+	)}
+</div>
+
+<style>
+.verify {
+	margin: 1.25rem 0 2rem;
+	border: 1px solid var(--t-border);
+	border-inline-start: 3px solid var(--t-accent);
+	border-radius: 0.6rem;
+	background: rgb(var(--t-surface-2-rgb));
+	overflow: hidden;
+}
+
+.verify__head {
+	display: flex;
+	align-items: center;
+	gap: 0.45rem;
+	padding: 0.6rem 0.95rem;
+	border-block-end: 1px solid var(--t-border);
+	color: var(--t-accent);
+}
+
+.verify__icon {
+	flex-shrink: 0;
+}
+
+/* Same override as the tracker's heading: `:root .sl-markdown-content h3`
+   outranks a bare class, and this is a panel label, not a section break. */
+.verify h3.verify__title {
+	margin: 0;
+	font-family: var(--t-font-heading);
+	font-size: 0.82rem;
+	font-weight: 600;
+	line-height: 1.4;
+	letter-spacing: 0.02em;
+	text-transform: uppercase;
+	color: var(--t-accent);
+}
+
+.verify__panes {
+	padding: 0.9rem 0.95rem 0.2rem;
+}
+
+/* Two terminals side by side, because that is how they are run. Collapses to
+   one column early — a wrapped line of shell output is unreadable. */
+.verify__panes--split {
+	display: grid;
+	gap: 0.9rem;
+}
+
+@media (min-width: 900px) {
+	.verify__panes--split {
+		grid-template-columns: 1fr 1fr;
+	}
+}
+
+.verify__pane-label {
+	margin: 0 0 0.4rem;
+	font-family: var(--t-font-mono);
+	font-size: 0.72rem;
+	letter-spacing: 0.03em;
+	text-transform: uppercase;
+	color: var(--t-text-faint);
+}
+
+.verify__cmd {
+	margin: 0 0 0.45rem;
+	font-size: 0.85rem;
+	overflow-x: auto;
+}
+
+/* The prompt is decoration, so it is a pseudo-element — a literal `$` in the
+   markup gets picked up by copy and pasted into the student's shell. */
+.verify__cmd code::before {
+	content: '$ ';
+	color: var(--t-text-faint);
+}
+
+.verify__cmd code {
+	font-family: var(--t-font-mono);
+	font-size: 0.82rem;
+	white-space: pre;
+	color: var(--t-text-strong);
+	background: none;
+	border: 0;
+	padding: 0;
+}
+
+/* Styled to match the Expressive Code blocks around it rather than routed
+   through them: this is output to read, so it must not carry a copy button or
+   a language tab, and nothing here should look copy-and-pasteable. */
+.verify__out {
+	margin: 0;
+	padding: 0.7rem 0.85rem;
+	border: 1px solid var(--t-code-border);
+	border-radius: 8px;
+	background: var(--t-code-bg);
+	overflow-x: auto;
+}
+
+.verify__out code {
+	font-family: var(--t-font-mono);
+	font-size: 0.78rem;
+	line-height: 1.65;
+	white-space: pre;
+	color: var(--t-code-text);
+	background: none;
+	border: 0;
+	padding: 0;
+}
+
+.verify__note,
+.verify__extra {
+	margin: 0;
+	padding: 0.15rem 0.95rem 0;
+	font-size: 0.82rem;
+	line-height: 1.55;
+	color: var(--t-text-muted);
+}
+
+.verify__extra :global(p) {
+	margin: 0.5rem 0 0;
+	font-size: 0.82rem;
+	line-height: 1.55;
+	color: var(--t-text-muted);
+}
+
+.verify__foot {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	justify-content: space-between;
+	gap: 0.5rem 1rem;
+	margin-block-start: 0.9rem;
+	padding: 0.6rem 0.95rem;
+	border-block-start: 1px solid var(--t-border);
+}
+
+.verify__fix {
+	display: inline-flex;
+	align-items: center;
+	gap: 0.3rem;
+	font-size: 0.8rem;
+	font-weight: 500;
+	text-decoration: none;
+	color: var(--t-link);
+}
+
+.verify__fix:hover {
+	text-decoration: underline;
+}
+</style>

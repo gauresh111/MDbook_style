@@ -1,0 +1,44 @@
+---
+---
+<div class="shape-legend">
+  <span class="shape triangle-shape">▲ Needs Fertilizer</span>
+  <span class="shape square-shape">■ Problem Detected</span>
+</div>
+
+<style>
+.shape-legend {
+  display: flex;
+  gap: 0.75rem;
+  margin-top: 0.75rem;
+  flex-wrap: wrap;
+}
+
+.shape {
+  font-size: 0.8rem;
+  font-weight: 600;
+  padding: 0.25rem 0.75rem;
+  border-radius: 6px;
+}
+
+/* Colours come from per-theme tokens (see android.css). A single mid-tone
+   hue cannot serve both appearances: the previous #fbbf24 amber on a 15%
+   amber tint scored 1.54:1 against white — effectively unreadable in the
+   light theme — while a darker amber would disappear on the dark one. */
+.triangle-shape {
+  background: var(--legend-warn-bg);
+  color: var(--legend-warn-fg);
+  border: 1px solid var(--legend-warn-border);
+}
+
+.square-shape {
+  background: var(--legend-alert-bg);
+  color: var(--legend-alert-fg);
+  border: 1px solid var(--legend-alert-border);
+}
+
+@media (max-width: 640px) {
+  .shape-legend {
+    justify-content: flex-start;
+  }
+}
+</style>

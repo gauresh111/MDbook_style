@@ -1,0 +1,52 @@
+---
+import type { ImageMetadata } from 'astro';
+
+interface Props {
+  inputSrc: string | ImageMetadata;
+  inputAlt?: string;
+  inputCaption?: string;
+  outputSrc: string | ImageMetadata;
+  outputAlt?: string;
+  outputCaption?: string;
+}
+
+const {
+  inputSrc,
+  inputAlt = 'Input image',
+  inputCaption,
+  outputSrc,
+  outputAlt = 'Expected output',
+  outputCaption,
+} = Astro.props;
+
+const inputUrl = typeof inputSrc === 'string' ? inputSrc : inputSrc.src;
+const outputUrl = typeof outputSrc === 'string' ? outputSrc : outputSrc.src;
+const inputFilename = inputUrl.split('/').pop();
+const outputFilename = outputUrl.split('/').pop();
+---
+
+<div class="image-compare-grid">
+  <div class="image-panel">
+    <div class="image-panel-label">Input Image</div>
+    <img src={inputUrl} alt={inputAlt} />
+    <div class="image-panel-footer">
+      {inputCaption && <p class="image-caption">{inputCaption}</p>}
+      <a class="download-btn" href={inputUrl} download={inputFilename}>
+        <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+        Download
+      </a>
+    </div>
+  </div>
+  <div class="image-panel-divider">→</div>
+  <div class="image-panel">
+    <div class="image-panel-label output-label">Expected Output</div>
+    <img src={outputUrl} alt={outputAlt} />
+    <div class="image-panel-footer">
+      {outputCaption && <p class="image-caption">{outputCaption}</p>}
+      <a class="download-btn" href={outputUrl} download={outputFilename}>
+        <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+        Download
+      </a>
+    </div>
+  </div>
+</div>

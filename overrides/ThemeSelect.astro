@@ -1,0 +1,261 @@
+---
+/**
+ * Replaces Starlight's theme <select> with a sliding switch.
+ *
+ * Starlight ships a three-way dropdown (dark / light / auto). This site has
+ * two designed appearances of the same Android docs design, so a binary
+ * switch is both simpler and clearer:
+ *   left  = "dark"  → Android docs, dark appearance
+ *   right = "light" → Android docs, light appearance
+ *
+ * The glyph rides *inside* the knob and always shows the appearance you are
+ * currently in — moon while dark, sun while light. Keeping it in the knob
+ * (rather than positioned against the track) is what keeps it centred at
+ * every size; an earlier version pinned each icon to a track offset and they
+ * drifted out of alignment.
+ *
+ * The `starlight-theme` localStorage key is reused deliberately — Starlight's
+ * own inline ThemeProvider script reads it before first paint, so persistence
+ * and the no-flash behaviour come for free.
+ */
+---
+
+<button
+	class="theme-switch"
+	type="button"
+	role="switch"
+	aria-checked="false"
+	aria-label="Switch between the dark and light appearance"
+	title="Toggle theme"
+>
+	<span class="track">
+		<span class="thumb">
+			<svg class="ico ico-moon" viewBox="0 0 24 24" aria-hidden="true">
+				<path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path>
+			</svg>
+			<svg class="ico ico-sun" viewBox="0 0 24 24" aria-hidden="true">
+				<circle cx="12" cy="12" r="4.6"></circle>
+				<path d="M12 1.6v2.6M12 19.8v2.6M4.0 4.0l1.9 1.9M18.1 18.1l1.9 1.9M1.6 12h2.6M19.8 12h2.6M4.0 20.0l1.9-1.9M18.1 5.9l1.9-1.9"></path>
+			</svg>
+		</span>
+	</span>
+</button>
+
+<script is:inline>
+	/* Starlight renders this component into more than one header slot (desktop
+	   and mobile), so this script runs once per instance. Everything below is
+	   therefore written to be idempotent: switches are bound individually and
+	   flagged, and the document-level listeners are registered only once. */
+	(function () {
+		var KEY = 'starlight-theme';
+
+		function current() {
+			return document.documentElement.dataset.theme === 'light' ? 'light' : 'dark';
+		}
+
+		function paintAll() {
+			var isLight = current() === 'light';
+			document.querySelectorAll('.theme-switch').forEach(function (el) {
+				el.setAttribute('aria-checked', isLight ? 'true' : 'false');
+				el.title = isLight ? 'Light appearance — switch to dark' : 'Dark appearance — switch to light';
+			});
+		}
+
+		function apply(theme) {
+			var root = document.documentElement;
+
+			/* Suppress transitions for the frame the palette changes in.
+			   Several elements (sidebar rows, table cells) transition
+			   `background` for their hover affordance. When that background is a
+			   var() token and the token itself changes, the transition latches
+			   the old computed colour and the element never repaints — the row
+			   stays light on a dark page. Killing transitions across the swap
+			   avoids that, and also stops the whole page cross-fading. */
+			root.classList.add('theme-switching');
+			root.dataset.theme = theme;
+			try {
+				localStorage.setItem(KEY, theme);
+			} catch (_) {}
+			paintAll();
+
+			/* Two frames: one for the new palette to be applied, one to let it
+			   paint before transitions are allowed back. */
+			requestAnimationFrame(function () {
+				requestAnimationFrame(function () {
+					root.classList.remove('theme-switching');
+				});
+			});
+		}
+
+		document.querySelectorAll('.theme-switch').forEach(function (el) {
+			if (el.dataset.bound) return;   // a sibling instance already wired this one
+			el.dataset.bound = '1';
+			el.addEventListener('click', function () {
+				apply(current() === 'light' ? 'dark' : 'light');
+			});
+		});
+
+		if (!window.__kcThemeSwitchInit) {
+			window.__kcThemeSwitchInit = true;
+
+			/* Keep every switch in sync if anything else flips the attribute
+			   (Starlight's own provider, another tab, back/forward cache). */
+			new MutationObserver(function (ms) {
+				ms.forEach(function (m) {
+					if (m.attributeName === 'data-theme') paintAll();
+				});
+			}).observe(document.documentElement, { attributes: true });
+
+			window.addEventListener('storage', function (e) {
+				if (e.key === KEY && e.newValue) {
+					apply(e.newValue === 'light' ? 'light' : 'dark');
+				}
+			});
+		}
+
+		paintAll();
+	})();
+</script>
+
+<style>
+	.theme-switch {
+		/* One source of truth for the geometry: the knob diameter and the slide
+		   distance are both derived from these, so the parts cannot drift. */
+		--w: 3.5rem;
+		--h: 1.75rem;
+		--pad: 0.1875rem;
+		--knob: calc(var(--h) - (var(--pad) * 2));
+		/* Slide distance, kept as its own token deliberately: expressing it as
+		   calc(--w - --knob - …) nests one calc() inside another once --knob is
+		   substituted, which resolves to 0 and the knob never moves. This form
+		   references only plain lengths. The -2px is the track's two borders. */
+		--travel: calc(var(--w) - var(--h) - 2px);
+
+		display: inline-flex;
+		align-items: center;
+		padding: 0;
+		border: 0;
+		background: none;
+		cursor: pointer;
+		line-height: 0;
+		flex-shrink: 0;
+	}
+
+	.track {
+		position: relative;
+		display: block;
+		inline-size: var(--w);
+		block-size: var(--h);
+		border-radius: 999px;
+		background: rgba(var(--t-line-rgb), 0.14);
+		border: 1px solid var(--t-border);
+		/* Deliberately NOT transitioned. The switch is exempt from the
+		   theme-swap transition freeze so its slide can play, which means any
+		   transitioned colour here would latch its old value when the tokens
+		   change — leaving the control tinted for the previous theme. Motion
+		   is transitioned; colour swaps instantly, in step with the page. */
+	}
+
+	.theme-switch:hover .track {
+		background: rgba(var(--t-accent-rgb), 0.16);
+		border-color: var(--t-accent);
+	}
+
+	.theme-switch:focus-visible .track {
+		outline: 2px solid var(--t-accent);
+		outline-offset: 2px;
+	}
+
+	/* The knob. A flex box so whichever glyph is visible is centred exactly.
+	   Vertical centring is done with margin rather than translateY so that
+	   `transform` stays free — the slide uses `translate` and the press uses
+	   `scale`, and none of the three can clobber another. */
+	.thumb {
+		position: absolute;
+		top: 50%;
+		margin-block-start: calc(var(--knob) / -2);
+		inset-inline-start: var(--pad);
+		inline-size: var(--knob);
+		block-size: var(--knob);
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		border-radius: 50%;
+		background: var(--t-accent);
+		box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+		/* Slight overshoot on the slide so the knob "settles" instead of
+		   stopping dead — the bounce is what makes the switch feel physical.
+		   `background` is intentionally absent: see the note on .track. */
+		transition:
+			translate 0.34s cubic-bezier(0.34, 1.45, 0.64, 1),
+			scale 0.15s ease;
+	}
+
+	.theme-switch[aria-checked='true'] .thumb {
+		translate: var(--travel) 0;
+	}
+
+	/* Press feedback: the knob dips, then springs back on release. */
+	.theme-switch:active .thumb {
+		scale: 0.86;
+	}
+
+	.ico {
+		position: absolute;
+		inline-size: 62%;
+		block-size: 62%;
+		fill: none;
+		stroke: var(--t-on-accent);
+		stroke-width: 2.2;
+		stroke-linecap: round;
+		stroke-linejoin: round;
+		pointer-events: none;
+		/* The outgoing glyph spins out and shrinks while the incoming one spins
+		   in — a straight cross-fade at this size just looks like a flicker. */
+		transition:
+			opacity 0.18s ease,
+			rotate 0.34s cubic-bezier(0.34, 1.45, 0.64, 1),
+			scale 0.34s cubic-bezier(0.34, 1.45, 0.64, 1);
+	}
+
+	/* The moon is filled rather than stroked — a stroked crescent reads as a
+	   sliver at this size. */
+	.ico-moon {
+		fill: var(--t-on-accent);
+		stroke: none;
+	}
+
+	/* Hidden glyph: rotated away and scaled down. Each spins the opposite way
+	   so the pair reads as one object turning over rather than two fading. */
+	.theme-switch[aria-checked='false'] .ico-sun {
+		opacity: 0;
+		rotate: -90deg;
+		scale: 0.4;
+	}
+	.theme-switch[aria-checked='true'] .ico-moon {
+		opacity: 0;
+		rotate: 90deg;
+		scale: 0.4;
+	}
+	.theme-switch[aria-checked='false'] .ico-moon,
+	.theme-switch[aria-checked='true'] .ico-sun {
+		opacity: 1;
+		rotate: 0deg;
+		scale: 1;
+	}
+
+	/* Motion is decoration here — the knob position and the glyph still convey
+	   the state without it. */
+	@media (prefers-reduced-motion: reduce) {
+		.track,
+		.thumb,
+		.ico {
+			transition: none;
+		}
+		.theme-switch[aria-checked='false'] .ico-sun,
+		.theme-switch[aria-checked='true'] .ico-moon {
+			rotate: 0deg;
+			scale: 1;
+		}
+	}
+</style>

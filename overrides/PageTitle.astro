@@ -1,0 +1,181 @@
+---
+/**
+ * Page title with a DevSite-style breadcrumb above it.
+ *
+ * source.android.com puts a trail like `AOSP › Docs › Getting Started` over
+ * every article heading. Starlight has no breadcrumb of its own, so the trail
+ * is derived from the sidebar tree: walk it for the entry flagged `isCurrent`
+ * and collect the labels of the groups enclosing it.
+ *
+ * The trail lists the page's *ancestors*, not the page itself — the <h1>
+ * immediately below already names the page, and DevSite does the same.
+ */
+import type { SidebarEntry } from '@astrojs/starlight/utils/routing/types';
+import config from 'virtual:starlight/user-config';
+import site from 'virtual:mdbook-style/config';
+
+const PAGE_TITLE_ID = '_top';
+const { entry, sidebar } = Astro.locals.starlightRoute;
+
+type Crumb = { label: string; href?: string };
+
+/**
+ * A sidebar group has no page of its own, so a crumb for it links to the first
+ * leaf page inside it — the same thing clicking the group in the sidebar and
+ * picking its first entry would do. Without this the crumbs are inert text.
+ */
+function firstLeafHref(entries: SidebarEntry[]): string | undefined {
+	for (const item of entries) {
+		if (item.type === 'link') return item.href;
+		const nested = firstLeafHref(item.entries);
+		if (nested) return nested;
+	}
+	return undefined;
+}
+
+/**
+ * Depth-first search for the current page, returning a crumb for each group
+ * enclosing it. Returns null when the page is not in the sidebar at all
+ * (splash pages, for example), in which case no breadcrumb is rendered.
+ */
+function trailTo(entries: SidebarEntry[], ancestors: Crumb[] = []): Crumb[] | null {
+	for (const item of entries) {
+		if (item.type === 'link') {
+			if (item.isCurrent) return ancestors;
+		} else {
+			const crumb: Crumb = { label: item.label, href: firstLeafHref(item.entries) };
+			const found = trailTo(item.entries, [...ancestors, crumb]);
+			if (found) return found;
+		}
+	}
+	return null;
+}
+
+/* The Starlight title is the same name the header shows and every site
+   already declares, so it is the default; `brand.siteTitle` is for the case
+   where the trail wants a shorter form of it. Starlight stores the title per
+   locale — this site is single-locale, so the first entry is it. */
+const siteTitle = site.brand.siteTitle ?? Object.values(config.title)[0] ?? '';
+const homeHref = import.meta.env.BASE_URL;
+
+const trail = sidebar ? trailTo(sidebar) : null;
+// Only worth showing when it says something the heading does not.
+const crumbs: Crumb[] | null = trail ? [{ label: siteTitle, href: homeHref }, ...trail] : null;
+---
+
+{
+	crumbs && (
+		<nav class="breadcrumb not-content" aria-label="Breadcrumb">
+			<ol>
+				{crumbs.map((crumb, i) => (
+					<li>
+						{/* The last crumb is the page's immediate section and is
+						    de-emphasised, matching DevSite. Anything without a
+						    resolvable target falls back to plain text. */}
+						{crumb.href ? (
+							<a href={crumb.href} aria-current={i === crumbs.length - 1 ? 'page' : undefined}>
+								{crumb.label}
+							</a>
+						) : (
+							<span aria-current={i === crumbs.length - 1 ? 'page' : undefined}>{crumb.label}</span>
+						)}
+					</li>
+				))}
+			</ol>
+		</nav>
+	)
+}
+
+<h1 id={PAGE_TITLE_ID}>{entry.data.title}</h1>
+
+<style>
+	.breadcrumb {
+		/* The trail and the <h1> were 6px apart, which read as one clustered
+		   block rather than two pieces of information. DevSite leaves 36px;
+		   this is a little tighter to suit the narrower content column, but
+		   enough to separate them clearly. */
+		margin-block: 0 1.25rem;
+	}
+
+	.breadcrumb ol {
+		display: flex;
+		flex-wrap: wrap;
+		align-items: center;
+		gap: 0;
+		margin: 0;
+		padding: 0;
+		list-style: none;
+	}
+
+	.breadcrumb li {
+		display: flex;
+		align-items: center;
+		/* DevSite's breadcrumb is small caps-ish: 14px, medium, wide tracking. */
+		font-size: 0.875rem;
+		font-weight: 500;
+		letter-spacing: 1.5px;
+		line-height: 1.4;
+	}
+
+	/* The chevron is drawn with a border rather than an icon font so the
+	   component carries no extra dependency. */
+	.breadcrumb li + li::before {
+		content: '';
+		inline-size: 0.36em;
+		block-size: 0.36em;
+		margin-inline: 0.55em 0.7em;
+		border-block-start: 1.5px solid var(--t-text-muted);
+		border-inline-end: 1.5px solid var(--t-text-muted);
+		rotate: 45deg;
+		flex-shrink: 0;
+	}
+
+	.breadcrumb a,
+	.breadcrumb span {
+		color: var(--t-text-strong);
+		text-decoration: none;
+		border-radius: 4px;
+	}
+
+	.breadcrumb a:hover {
+		color: var(--t-link);
+		text-decoration: underline;
+	}
+
+	.breadcrumb a:focus-visible {
+		outline: 2px solid var(--t-accent);
+		outline-offset: 2px;
+	}
+
+	/* Current section — de-emphasised, as on DevSite. Still a link. */
+	.breadcrumb [aria-current='page'] {
+		color: var(--t-text-muted);
+		font-weight: 400;
+	}
+
+	.breadcrumb a[aria-current='page']:hover {
+		color: var(--t-link);
+	}
+
+	h1 {
+		/* Spacing above the title is owned by the breadcrumb's bottom margin,
+		   so the two cannot fight each other. */
+		margin-top: 0;
+		margin-bottom: 0.75rem;
+		font-size: var(--sl-text-h1);
+		line-height: var(--sl-line-height-headings);
+		font-weight: 600;
+		color: var(--sl-color-white);
+	}
+
+	@media (max-width: 50rem) {
+		.breadcrumb {
+			margin-block: 0 0.9rem;
+		}
+
+		.breadcrumb li {
+			font-size: 0.75rem;
+			letter-spacing: 1px;
+		}
+	}
+</style>

@@ -1,0 +1,47 @@
+---
+interface Props {
+  label: string;
+  subtitle: string;
+}
+const { label, subtitle } = Astro.props;
+---
+
+<div class="story-header reveal">
+  <span class="story-badge">{label}</span>
+  <p class="story-subtitle">{subtitle}</p>
+</div>
+
+<style>
+.story-header {
+  text-align: center;
+  margin-bottom: 3.5rem;
+}
+
+.story-badge {
+  display: inline-block;
+  background: linear-gradient(135deg, var(--t-border-strong), var(--t-accent));
+  color: var(--t-on-accent);
+  font-size: 1rem;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  padding: 0.5rem 1.4rem;
+  border-radius: 999px;
+  margin-bottom: 1rem;
+  box-shadow: 0 4px 18px rgba(var(--t-line-rgb), 0.40);
+}
+
+.story-subtitle {
+  font-size: 1.2rem;
+  color: var(--t-text);
+  max-width: 540px;
+  margin: 0.75rem auto 0;
+  line-height: 1.75;
+}
+
+@media (max-width: 640px) {
+  .story-subtitle {
+    font-size: 1.05rem;
+  }
+}
+</style>

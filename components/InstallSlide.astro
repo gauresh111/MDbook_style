@@ -1,0 +1,133 @@
+---
+/**
+ * One screen of an `InstallGuide`.
+ *
+ * The head is `not-content`; the body is not, on purpose — everything written
+ * between the tags in MDX is ordinary markdown and should keep Starlight's
+ * prose styling, so a paragraph inside the walkthrough reads exactly like a
+ * paragraph outside it.
+ */
+interface Props {
+	title: string;
+	/** A red strip above the body, for the screens that can destroy data. */
+	alert?: string;
+}
+
+const { title, alert } = Astro.props;
+---
+
+<section class="slide" data-slide data-title={title} aria-label={title}>
+	<header class="slide__head not-content">
+		<p class="slide__eyebrow" data-slide-num></p>
+		<h3 class="slide__title">{title}</h3>
+	</header>
+
+	{
+		alert && (
+			<p class="slide__alert not-content">
+				<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+					<path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" />
+					<line x1="12" y1="9" x2="12" y2="13" />
+					<line x1="12" y1="17" x2="12.01" y2="17" />
+				</svg>
+				<span>{alert}</span>
+			</p>
+		)
+	}
+
+	<div class="slide__body">
+		<slot />
+	</div>
+</section>
+
+<style>
+.slide__head {
+	margin-block-end: 0.9rem;
+}
+
+.slide__eyebrow {
+	margin: 0 0 0.2rem;
+	font-family: var(--t-font-mono);
+	font-size: 0.7rem;
+	letter-spacing: 0.06em;
+	text-transform: uppercase;
+	color: var(--t-accent);
+}
+
+/* `:root .sl-markdown-content h3` outranks a lone class, and this is a slide
+   label inside a panel rather than a section break in the page. Qualified the
+   same way the tracker and Verify headings are. */
+.slide h3.slide__title {
+	margin: 0;
+	padding: 0;
+	border: 0;
+	font-family: var(--t-font-heading);
+	font-size: 1.15rem;
+	font-weight: 600;
+	line-height: 1.35;
+	letter-spacing: normal;
+	color: var(--t-text-strong);
+}
+
+.slide__alert {
+	display: flex;
+	align-items: flex-start;
+	gap: 0.5rem;
+	margin: 0 0 1rem;
+	padding: 0.55rem 0.75rem;
+	border: 1px solid var(--t-border);
+	border-inline-start: 3px solid #d64545;
+	border-radius: 0.45rem;
+	background: rgba(214, 69, 69, 0.08);
+	font-size: 0.83rem;
+	line-height: 1.5;
+	color: var(--t-text);
+}
+
+.slide__alert svg {
+	flex-shrink: 0;
+	margin-block-start: 0.15rem;
+	color: #d64545;
+}
+
+/* Slotted markdown lives in the page's scope, so these have to be global.
+   Scoped to `.slide__body`, which is in this component's, so they cannot
+   escape into the rest of the page. */
+.slide__body :global(> :first-child) {
+	margin-block-start: 0;
+}
+
+.slide__body :global(> :last-child) {
+	margin-block-end: 0;
+}
+
+.slide__body :global(p) {
+	font-size: 0.92rem;
+	line-height: 1.65;
+}
+
+.slide__body :global(li) {
+	font-size: 0.92rem;
+	line-height: 1.6;
+}
+
+/* Installer screenshots are the point of the walkthrough — framed, centred,
+   and capped so a 1200px capture does not set the width of the window.
+   Carries the extra `.slide` because Starlight's own image rule matches at the
+   same specificity, and a tie here is decided by whichever stylesheet the build
+   happens to emit last. */
+.slide .slide__body :global(img) {
+	display: block;
+	inline-size: 100%;
+	max-inline-size: 34rem;
+	margin: 1rem auto;
+	border: 1px solid var(--t-border);
+	border-radius: 0.5rem;
+	background: rgb(var(--t-surface-rgb));
+}
+
+.slide__body :global(blockquote) {
+	margin-block: 1rem;
+	font-size: 0.88rem;
+}
+</style>

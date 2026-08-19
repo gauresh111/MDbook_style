@@ -1,0 +1,140 @@
+---
+interface Props {
+  icon?: string;
+  tag: string;
+  title: string;
+  align?: 'left' | 'right' | 'center';
+  highlight?: boolean;
+}
+const { icon, tag, title, align = 'left', highlight = false } = Astro.props;
+
+const revealClass = align === 'right' ? 'reveal from-right' : align === 'center' ? 'reveal' : 'reveal from-left';
+---
+
+<div class={`timeline-item ${align} ${revealClass}`}>
+  {icon && <div class="timeline-icon">{icon}</div>}
+  <div class={`timeline-card${highlight ? ' highlight-card' : ''}`}>
+    <div class="card-tag">{tag}</div>
+    <h3>{title}</h3>
+    <div class="card-body">
+      <slot />
+    </div>
+  </div>
+
+</div>
+
+<style>
+.timeline-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 1.25rem;
+  width: calc(50% - 2.25rem);
+  max-width: 420px;
+  position: relative;
+  overflow: visible;
+}
+
+.timeline-item.left {
+  align-self: flex-start;
+  flex-direction: row;
+  text-align: left;
+}
+
+.timeline-item.right {
+  align-self: flex-end;
+  flex-direction: row;
+  text-align: left;
+}
+
+.timeline-item.center {
+  align-self: center;
+  width: 78%;
+  max-width: 600px;
+  justify-content: center;
+  text-align: center;
+}
+
+
+@media (max-width: 720px) {
+  .timeline-item,
+  .timeline-item.left,
+  .timeline-item.right,
+  .timeline-item.center {
+    align-self: center;
+    width: 100%;
+    max-width: 100%;
+    flex-direction: row;
+    text-align: left;
+  }
+}
+
+.timeline-icon {
+  font-size: 1.75rem;
+  flex-shrink: 0;
+  background: rgba(var(--t-tint-rgb), 0.20);
+  border: 1px solid var(--t-border-strong);
+  border-radius: 50%;
+  width: 3.25rem;
+  height: 3.25rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-top: 0.25rem;
+}
+
+.timeline-card {
+  background: rgba(var(--t-raise-rgb), 0.35);
+  border: 1px solid var(--t-border);
+  border-radius: 1rem;
+  padding: 1.25rem 1.5rem;
+  flex: 1;
+  box-shadow: 0 4px 18px rgba(var(--t-line-rgb), 0.15), inset 0 1px 0 rgba(var(--t-raise-rgb), 0.50);
+  transition: border-color 0.25s, box-shadow 0.25s, background 0.25s;
+  position: relative;
+  z-index: 1;
+}
+
+.timeline-card:hover {
+  border-color: var(--t-border-strong);
+  background: rgba(var(--t-raise-rgb), 0.55);
+  box-shadow: 0 6px 24px rgba(var(--t-line-rgb), 0.22), 0 0 0 1px rgba(var(--t-line-rgb), 0.20);
+}
+
+.timeline-card.highlight-card {
+  border-color: rgba(var(--t-line-rgb), 0.40);
+  background: linear-gradient(135deg, rgba(var(--t-raise-rgb), 0.55), rgba(var(--t-sand-rgb), 0.40));
+  text-align: center;
+  box-shadow: 0 4px 22px rgba(var(--t-line-rgb), 0.20), inset 0 1px 0 rgba(var(--t-raise-rgb), 0.60);
+}
+
+.card-tag {
+  font-size: 0.85rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: var(--t-link);
+  margin-bottom: 0.4rem;
+}
+
+.timeline-card h3 {
+  font-size: 1.25rem;
+  font-weight: 700;
+  margin: 0 0 0.5rem;
+  color: var(--t-text-strong);
+}
+
+.card-body :global(p) {
+  font-size: 1.05rem;
+  color: var(--t-text);
+  line-height: 1.7;
+  margin: 0;
+}
+
+@media (max-width: 640px) {
+  .timeline-icon {
+    width: 2.5rem;
+    height: 2.5rem;
+    font-size: 1.25rem;
+  }
+}
+</style>

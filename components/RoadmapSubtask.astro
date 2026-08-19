@@ -1,0 +1,220 @@
+---
+/**
+ * One subtask, as a row inside its parent task's card.
+ *
+ *   <RoadmapSubtask n="5a" title="Progress Task" start="2026-01-13" end="2026-01-27" />
+ *
+ * Both dates are required and validated the same way a task's are — a subtask
+ * carries its own deadline, and it is frequently the one a participant is
+ * actually working to.
+ *
+ * Not a rail beat: it has no node and never moves the trail. Its parent's span
+ * already covers it, and a rail with fourteen nodes on it stops reading as a
+ * sequence of stages. What it does get is the same three-state colour as a task,
+ * so a card whose subtasks are in different states shows that at a glance —
+ * which is the whole reason 5a and 5b are separate rows rather than one span.
+ *
+ * `is-past` / `is-live` / `is-upcoming` and the ticking text are driven by the
+ * container's script via the data attributes below; the breathing keyframe comes
+ * from Roadmap.astro.
+ */
+import { crossesYear, formatDay, requireSpan, requireText, stateOf, weeksLabel } from './roadmap-dates';
+
+interface Props {
+	/** The subtask's label — "5a", "1b", and so on. */
+	n: string | number;
+	title: string;
+	/** ISO YYYY-MM-DD, first day inclusive. Required. */
+	start: string;
+	/** ISO YYYY-MM-DD, last day inclusive — the participant's deadline. Required. */
+	end: string;
+}
+
+const { n, title, start, end } = Astro.props as Partial<Props>;
+
+const label = n === undefined || n === null || `${n}`.trim() === ''
+	? '<RoadmapSubtask> (no `n`)'
+	: `Subtask ${n}`;
+
+const num = requireText(n === undefined ? undefined : `${n}`, 'n', '<RoadmapSubtask>');
+const name = requireText(title, 'title', label);
+const span = requireSpan(start, end, label);
+
+const state = stateOf(span, Date.now());
+---
+
+<div
+	class:list={['sub', `is-${state.status}`]}
+	data-when
+	data-state={state.status}
+	data-start={span.start}
+	data-end={span.end}
+>
+	<span class="sub__n" aria-hidden="true">{num}</span>
+
+	<div class="sub__main">
+		<p class="sub__head">
+			<span class="sub__title"><span class="sub__sr">Subtask {num} — </span>{name}</span>
+			<span class="sub__word" data-word>{state.word}</span>
+		</p>
+
+		<p class="sub__meta">
+			<time datetime={span.start}>{formatDay(span.start, crossesYear(span))}</time><span aria-hidden="true"
+				> – </span
+			><time datetime={span.end}>{formatDay(span.end)}</time>
+			<span class="sub__sep" aria-hidden="true"> · </span>{weeksLabel(span)}
+			<span class="sub__sep" aria-hidden="true"> · </span><span class="sub__remain" data-remain
+				>{state.remaining}</span
+			>
+		</p>
+	</div>
+</div>
+
+<style>
+/* Indented under the card's own text and marked with a rule in the state colour:
+   the rule is what makes three rows read as a group belonging to the task above
+   rather than three loose lines. */
+.sub {
+	display: flex;
+	align-items: flex-start;
+	gap: 0.5rem;
+	margin-block-start: 0.5rem;
+	padding-inline-start: 0.6rem;
+	border-inline-start: 2px solid var(--t-border);
+	transition: border-color 0.3s ease;
+}
+
+/* The first row needs a little more air from the description above it than the
+   rows need from each other. */
+.sub:not(.sub + .sub) {
+	margin-block-start: 0.75rem;
+}
+
+.sub.is-past {
+	border-inline-start-color: var(--rm-past);
+}
+
+.sub.is-live {
+	border-inline-start-color: var(--rm-live);
+}
+
+/* ── The label ── */
+.sub__n {
+	flex-shrink: 0;
+	min-inline-size: 1.7rem;
+	padding: 0.05rem 0.3rem;
+	box-sizing: border-box;
+	border: 1px solid var(--t-border);
+	border-radius: 0.25rem;
+	font-family: var(--t-font-mono);
+	font-size: 0.66rem;
+	font-variant-numeric: tabular-nums;
+	line-height: 1.5;
+	text-align: center;
+	color: var(--t-text-muted);
+	transition: color 0.3s ease, border-color 0.3s ease, background-color 0.3s ease;
+}
+
+.sub.is-past .sub__n {
+	background: var(--rm-past);
+	border-color: var(--rm-past);
+	color: var(--t-on-accent);
+}
+
+.sub.is-live .sub__n {
+	border-color: var(--rm-live);
+	color: var(--rm-live);
+	font-weight: 600;
+	animation: rm-breathe 2.4s ease-in-out infinite;
+}
+
+.sub__main {
+	flex: 1 1 auto;
+	min-inline-size: 0;
+}
+
+.sub__head {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: baseline;
+	justify-content: space-between;
+	gap: 0 0.5rem;
+	/* Margin stated on both sides: this is a <p> inside a slot, and Starlight's
+	   markdown spacing has opinions about those. */
+	margin: 0;
+}
+
+.sub__title {
+	font-size: 0.83rem;
+	font-weight: 600;
+	line-height: 1.45;
+	color: var(--t-text-strong);
+}
+
+.sub__sr {
+	position: absolute;
+	inline-size: 1px;
+	block-size: 1px;
+	overflow: hidden;
+	clip-path: inset(50%);
+	white-space: nowrap;
+}
+
+.sub__word {
+	flex-shrink: 0;
+	font-size: 0.63rem;
+	font-weight: 700;
+	letter-spacing: 0.08em;
+	text-transform: uppercase;
+	color: var(--rm-next);
+}
+
+.sub.is-past .sub__word {
+	color: var(--rm-past);
+}
+
+.sub.is-live .sub__word {
+	color: var(--rm-live);
+}
+
+.sub__meta {
+	margin: 0.1rem 0 0;
+	font-family: var(--t-font-mono);
+	font-size: 0.7rem;
+	font-variant-numeric: tabular-nums;
+	line-height: 1.5;
+	color: var(--t-text-faint);
+}
+
+.sub__sep {
+	opacity: 0.55;
+}
+
+.sub.is-live .sub__remain {
+	font-weight: 600;
+	color: var(--rm-live);
+}
+
+/* The rows are inside the card, so they arrive with it — no reveal of their own.
+   Only the pulse needs standing down. */
+@media (prefers-reduced-motion: reduce) {
+	.sub .sub__n,
+	.sub.is-live .sub__n {
+		animation: none;
+		transition: none;
+	}
+}
+
+@media (max-width: 720px) {
+	.sub__head {
+		/* Below this width the title and its state word fight for one line and the
+		   word wins, orphaning a single title word above it. Stack them instead. */
+		display: block;
+	}
+
+	.sub__word {
+		display: block;
+		margin-block-start: 0.05rem;
+	}
+}
+</style>
