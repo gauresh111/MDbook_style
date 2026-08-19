@@ -1,0 +1,1281 @@
+/* ══════════════════════════════════════════════════════════════════════
+   Android Open Source docs — shared refinements
+   ──────────────────────────────────────────────────────────────────────
+   Both themes are now the Android docs design (light and dark appearance),
+   so everything here is written ONCE, unscoped, against the `--t-*` tokens
+   in custom.css. Only the callout and table palettes, which have no token
+   equivalent, are split per theme at the bottom.
+
+   `:root` rather than a bare selector keeps specificity at exactly what the
+   `[data-theme=…]`-scoped rules in custom.css have, so nothing re-orders.
+
+   All values measured from source.android.com in both appearances.
+   ══════════════════════════════════════════════════════════════════════ */
+
+/* ── Theme swap ────────────────────────────────────────────────────────
+   ThemeSelect.astro adds this class for the single frame in which the
+   palette changes. Without it, any element that transitions `background`
+   for hover (sidebar rows, table cells) latches its previous computed
+   colour when the underlying var() token changes and never repaints — the
+   row stays light on a dark page. It also stops the entire page from
+   cross-fading on every toggle.
+
+   The switch itself is exempt — the palette changes on the same frame its
+   knob starts sliding, so including it would freeze the toggle's animation
+   at exactly the moment it plays. `:where()` keeps the exemption from
+   adding any specificity.                                                 */
+:root.theme-switching *:not(:where(.theme-switch, .theme-switch *)),
+:root.theme-switching *:not(:where(.theme-switch, .theme-switch *))::before,
+:root.theme-switching *:not(:where(.theme-switch, .theme-switch *))::after {
+	transition: none !important;
+}
+
+/* ── Type scale ────────────────────────────────────────────────────────
+   h1 40/48 600 -0.5px · h2 24/32 600 · h3 20/28 500
+   body 16/24 400 +0.25px. Headings Google Sans, prose Google Sans Text.  */
+:root .sl-markdown-content h1,
+:root .sl-markdown-content h2,
+:root .sl-markdown-content h3,
+:root .sl-markdown-content h4,
+:root .sl-markdown-content h5,
+:root .sl-markdown-content h6,
+:root .content-panel h1,
+:root .site-title {
+	font-family: var(--t-font-heading);
+	color: var(--t-text-strong);
+}
+
+:root .sl-markdown-content h1,
+:root .content-panel h1 {
+	font-size: 2.5rem;
+	line-height: 3rem;
+	font-weight: 600;
+	letter-spacing: -0.5px;
+}
+
+:root .sl-markdown-content h2 {
+	font-size: 1.5rem;
+	line-height: 2rem;
+	font-weight: 600;
+	letter-spacing: normal;
+	margin-top: 3.5rem;
+	padding-bottom: 0.35em;
+	border-bottom: 1px solid var(--t-border);
+}
+
+:root .sl-markdown-content h3 {
+	font-size: 1.25rem;
+	line-height: 1.75rem;
+	font-weight: 500;
+	letter-spacing: normal;
+}
+
+:root .sl-markdown-content p,
+:root .sl-markdown-content :is(ul, ol):not(:where(.not-content *)) {
+	font-size: 1rem;
+	line-height: 1.5;
+	letter-spacing: 0.25px;
+	color: var(--t-text);
+}
+
+/* ── Links — DevSite colours them and drops the rule ──────────────────── */
+:root .sl-markdown-content a:not(:where(.not-content *)) {
+	color: var(--t-link);
+	border-bottom: 0;
+	font-weight: 500;
+	text-decoration: none;
+}
+:root .sl-markdown-content a:hover:not(:where(.not-content *)) {
+	color: var(--t-link);
+	border-bottom: 0;
+	text-decoration: underline;
+}
+
+/* ── Flatness ──────────────────────────────────────────────────────────
+   DevSite has no blur and no drop shadows in the chrome; every boundary is
+   a hairline. Strip the blur/glow the previous warm theme layered on.     */
+:root header.header,
+:root .sidebar-pane,
+:root .right-sidebar,
+:root mobile-starlight-toc nav,
+:root mobile-starlight-toc .dropdown,
+:root dialog[aria-label*='earch'] .dialog-frame {
+	backdrop-filter: none !important;
+	-webkit-backdrop-filter: none !important;
+}
+
+:root header.header {
+	background: rgba(var(--t-body-rgb), 1) !important;
+	border-bottom: 1px solid var(--t-border) !important;
+	box-shadow: none !important;
+}
+:root header.header a,
+:root header.header .site-title,
+:root header.header button {
+	color: var(--t-text-strong) !important;
+}
+
+:root .sidebar-pane {
+	background: rgba(var(--t-body-rgb), 1) !important;
+	border-inline-end: 1px solid var(--t-border) !important;
+	box-shadow: none !important;
+}
+
+:root .right-sidebar {
+	background: rgba(var(--t-body-rgb), 1) !important;
+	border-inline-start: 1px solid var(--t-border) !important;
+}
+
+:root mobile-starlight-toc nav {
+	background-color: rgba(var(--t-body-rgb), 1) !important;
+	border-bottom: 1px solid var(--t-border) !important;
+	box-shadow: none !important;
+}
+
+:root mobile-starlight-toc .dropdown {
+	background-color: rgba(var(--t-body-rgb), 1) !important;
+	border: 1px solid var(--t-border) !important;
+	box-shadow: 0 2px 6px rgba(0, 0, 0, 0.20) !important;
+}
+
+/* ── Sidebar ───────────────────────────────────────────────────────────
+   The spacious rounded-pill nav (rows, group headers, active/hover tints,
+   indentation) is defined once, token-driven, in custom.css and already
+   reads correctly in both appearances — nothing to re-layer here. */
+
+/* ── "On this page" ───────────────────────────────────────────────────
+   Nested (h3) entries used to be the same brown as body links, which the
+   tokeniser therefore read as `--t-link` — turning every sub-entry the
+   accent blue and making the whole list look selected. Non-active entries
+   are muted text in both TOCs; only `aria-current` carries the accent.   */
+:root .right-sidebar-panel a,
+:root .right-sidebar-panel ul ul a,
+:root mobile-starlight-toc .dropdown a,
+:root mobile-starlight-toc .dropdown ul ul a {
+	color: var(--t-text-muted) !important;
+	font-weight: 400 !important;
+}
+
+:root .right-sidebar-panel a:hover,
+:root .right-sidebar-panel ul ul a:hover,
+:root mobile-starlight-toc .dropdown a:hover,
+:root mobile-starlight-toc .dropdown ul ul a:hover {
+	color: var(--t-text-strong) !important;
+	background: rgba(var(--t-accent-rgb), 0.10) !important;
+}
+
+:root .right-sidebar-panel a[aria-current='true'],
+:root .right-sidebar-panel ul ul a[aria-current='true'],
+:root mobile-starlight-toc .dropdown a[aria-current='true'],
+:root mobile-starlight-toc .dropdown ul ul a[aria-current='true'] {
+	color: var(--t-link) !important;
+	font-weight: 500 !important;
+	background: rgba(var(--t-accent-rgb), 0.10) !important;
+	border-inline-start-color: var(--t-accent) !important;
+}
+
+:root .right-sidebar-panel h2 {
+	color: var(--t-text-strong) !important;
+	border-bottom-color: var(--t-border);
+}
+:root .right-sidebar-panel h2::before {
+	background: var(--t-accent);
+	box-shadow: none;
+}
+
+/* Same for the scrolled-to-bottom override in custom.css. */
+:root .toc-at-bottom starlight-toc a.toc-last-link,
+:root .toc-at-bottom mobile-starlight-toc a.toc-last-link {
+	color: var(--t-link) !important;
+	background: rgba(var(--t-accent-rgb), 0.10) !important;
+	border-inline-start: 3px solid var(--t-accent) !important;
+}
+:root .toc-at-bottom starlight-toc a[aria-current='true']:not(.toc-last-link),
+:root .toc-at-bottom mobile-starlight-toc a[aria-current='true']:not(.toc-last-link) {
+	color: var(--t-text-muted) !important;
+	background: transparent !important;
+}
+
+/* ── Code ─────────────────────────────────────────────────────────────── */
+:root .sl-markdown-content code:not(:where(.not-content *)) {
+	background: var(--t-code-bg);
+	color: var(--t-code-text);
+	/* Its own token rather than --t-border: that is a page-chrome hairline and
+	   drew a pale ring around the dark chip. In the light appearance the chip
+	   reads as one solid dark pill; in the dark appearance it keeps a faint
+	   edge so it separates from the page. */
+	border: 1px solid var(--t-code-border);
+	border-radius: 4px;
+	font-weight: 500;
+	letter-spacing: 0.25px;
+}
+
+:root .expressive-code .frame {
+	border-radius: 8px;
+	box-shadow: none !important;
+}
+:root .sl-markdown-content pre:not(.has-language):not(:where(.not-content *)) {
+	border: 1px solid var(--t-border);
+	border-radius: 8px;
+	box-shadow: none;
+}
+/* Inline code inside a code block must not inherit the chip styling. */
+:root .expressive-code code {
+	background: transparent;
+	border: 0;
+}
+
+/* The blanket `:root * { scrollbar-color: var(--t-accent) … }` in custom.css
+   paints every scrollbar the accent blue, and the standard property beats the
+   ::-webkit-scrollbar-thumb rule further down this file, so it wins here too.
+   On a wide command that is a saturated blue bar across the foot of a dark
+   block — the loudest thing on the page. Code frames get a grey off their own
+   palette instead; --t-border-strong reads on the dark fill in both
+   appearances (#80868B on #202124, #5F6368 on #36373A). */
+:root .expressive-code pre {
+	scrollbar-color: var(--t-border-strong) transparent;
+}
+:root .expressive-code pre::-webkit-scrollbar-thumb {
+	background: var(--t-border-strong);
+}
+:root .expressive-code pre::-webkit-scrollbar-track {
+	background: transparent;
+}
+
+/* ── Tables ───────────────────────────────────────────────────────────
+   DevSite: 16px header at weight 500, 14px body cells, 16px padding, no
+   zebra striping and no cell borders — the header fill does the work.    */
+/* DevSite draws no table borders at all — it relies on the header fill alone,
+   and its body cells are 95%-white, which on a white page leaves rows with no
+   separation whatsoever. That reads as "missing borders", so the grid is drawn
+   explicitly here: a firm outline, a rule under the header, and hairlines
+   between both rows and columns. */
+:root .sl-markdown-content table:not(:where(.not-content *)) {
+	/* 2px, not 1px. On a 1.25x display a 1px border snaps to a single device
+	   pixel — 0.8 CSS px — which all but disappears against white. 2px
+	   survives the rounding at any scale factor. */
+	border: 2px solid var(--t-border-strong);
+	border-radius: 8px;
+	box-shadow: none;
+	font-size: 0.875rem;
+	/* MUST stay `auto` on the inline axis. The table is its own scroll
+	   container (it is display:block), so a blanket `overflow: hidden` — which
+	   is what was here, to clip the header's corners — silently made every
+	   too-wide table unscrollable: the extra columns were clipped with no way
+	   to reach them. Corner clipping is not worth losing content over. */
+	overflow-x: auto;
+	overflow-y: hidden;
+	/* The box must hug its columns exactly.
+	   custom.css floors this at `min(280px, 100%)`, but because the table is
+	   `display: block` its rows form an anonymous table box that sizes to
+	   content and does NOT stretch to fill the block. Any table narrower than
+	   the floor therefore ended up with a dead strip on its trailing edge —
+	   inside the border, past where the header and row fills stop — showing
+	   the page through it. That is the black band on narrow two-column
+	   tables in the dark theme, and a white one in the light theme. */
+	min-width: 0;
+}
+:root .sl-markdown-content thead:not(:where(.not-content *)) {
+	background: var(--t-table-head-bg);
+}
+:root .sl-markdown-content th:not(:where(.not-content *)) {
+	background: var(--t-table-head-bg);
+	color: var(--t-table-head-text);
+	font-size: 1rem;
+	font-weight: 500;
+	letter-spacing: normal;
+	text-transform: none;
+	padding: 1rem;
+	border-bottom: 2px solid var(--t-border-strong);
+	border-inline-end: 1px solid var(--t-rule);
+	text-align: left;
+}
+:root .sl-markdown-content td:not(:where(.not-content *)) {
+	background: var(--t-table-cell-bg);
+	color: var(--t-text);
+	font-size: 0.875rem;
+	padding: 0.9375rem 1rem 1rem;
+	border-bottom: 1px solid var(--t-rule);
+	border-inline-end: 1px solid var(--t-rule);
+}
+/* No rule on the outermost edge — the table's own border is already there. */
+:root .sl-markdown-content th:last-child:not(:where(.not-content *)),
+:root .sl-markdown-content td:last-child:not(:where(.not-content *)) {
+	border-inline-end: 0;
+}
+:root .sl-markdown-content td:first-child:not(:where(.not-content *)) {
+	color: var(--t-text);
+	font-weight: 400;
+}
+/* DevSite does not stripe rows; hover is the only row affordance. */
+:root .sl-markdown-content tbody tr:nth-child(even):not(:where(.not-content *)) td {
+	background: var(--t-table-cell-bg);
+}
+:root .sl-markdown-content tbody tr:hover:not(:where(.not-content *)) td,
+:root .sl-markdown-content tbody tr:hover:not(:where(.not-content *)) td:first-child {
+	background: rgba(var(--t-accent-rgb), 0.08);
+	color: var(--t-text-strong);
+}
+:root .sl-markdown-content tr:last-child td:not(:where(.not-content *)) {
+	border-bottom: 0;
+}
+
+/* ── Tables on narrow screens ──────────────────────────────────────────
+   custom.css has a mobile table block of its own, but it is dead: it sits at
+   the same specificity as the rules above and loads first, so the desktop
+   16px header and 16px padding won everywhere — four columns of that on a
+   343px content column is what made mobile tables look cramped. The sizing
+   is restated here, where it actually applies.                           */
+@media (max-width: 50rem) {
+	:root .sl-markdown-content table:not(:where(.not-content *)) {
+		/* Not `width: 100%`. The rows cannot stretch to fill a display:block
+		   table (see the min-width note above), so forcing the box to the full
+		   column width just reopens the dead-strip gap on small screens. Hug
+		   the columns and scroll when they genuinely do not fit. */
+		width: fit-content !important;
+		max-width: 100%;
+		margin: 1.5rem 0;
+		/* A visible scrollbar is the affordance that tells you the table has
+		   more columns off-screen. */
+		scrollbar-width: thin;
+	}
+
+	:root .sl-markdown-content th:not(:where(.not-content *)) {
+		font-size: 0.875rem;
+		padding: 0.7rem 0.75rem;
+		white-space: normal;
+	}
+
+	:root .sl-markdown-content td:not(:where(.not-content *)) {
+		font-size: 0.8125rem;
+		padding: 0.65rem 0.75rem;
+		vertical-align: top;
+		white-space: normal;
+	}
+
+	/* Code chips are the usual culprit for a row that refuses to narrow. */
+	:root .sl-markdown-content td code:not(:where(.not-content *)) {
+		font-size: 0.78em;
+		word-break: break-word;
+	}
+
+	:root .sl-markdown-content table:not(:where(.not-content *))::-webkit-scrollbar {
+		height: 6px;
+	}
+	:root .sl-markdown-content table:not(:where(.not-content *))::-webkit-scrollbar-thumb {
+		background: var(--t-border-strong);
+		border-radius: 6px;
+	}
+}
+
+/* ── Horizontal rule + blockquote ───────────────────────────────────────
+   A section break needs to read as deliberate space, not as a stray line.
+   The rule uses --t-rule rather than the --t-border hairline (which lands on
+   a single device pixel at fractional DPRs and all but vanishes), and the
+   margin is asymmetric — more room above than below — so the rule groups
+   with the heading that follows it instead of floating between sections. */
+:root .sl-markdown-content hr:not(:where(.not-content *)) {
+	height: 1px;
+	border: 0;
+	background: var(--t-rule);
+	margin-block: 3.5rem 2.25rem;
+	margin-inline: auto;
+}
+:root .sl-markdown-content hr:not(:where(.not-content *))::after {
+	display: none;
+}
+
+/* An <hr> immediately before a heading would otherwise stack its own bottom
+   margin against the heading's generous top margin and open a large gap. */
+:root .sl-markdown-content hr:not(:where(.not-content *)) + :is(h2, h3, .sl-heading-wrapper) {
+	margin-top: 0;
+}
+
+@media (max-width: 50rem) {
+	:root .sl-markdown-content hr:not(:where(.not-content *)) {
+		margin-block: 2.5rem 1.75rem;
+	}
+}
+
+/* DevSite's blockquote: a solid Grey-50 panel with a thick 8px rule down the
+   leading edge, rounded on all four corners and generously padded. Ours was a
+   4px hairline over a 50%-alpha fill, which is why it read as an untreated
+   block of text rather than a quote. */
+:root .sl-markdown-content blockquote:not(:where(.not-content *)) {
+	border-inline-start: 8px solid var(--t-border-strong);
+	background: var(--t-quote-bg);
+	border-radius: 8px;
+	padding: 1.5rem;
+	margin-block: 2rem;
+	color: var(--t-text);
+	font-style: normal;
+}
+
+/* ══════════════════════════════════════════════════════════════════════
+   Callouts
+   ──────────────────────────────────────────────────────────────────────
+   DevSite renders these as a flat, fully-tinted block: 4px radius, no left
+   border, icon reserved a 60px gutter, and the title, body and links all
+   share one colour. Starlight's four types map onto DevSite's as:
+     note → note · tip → success · caution → caution · danger → warning
+   Each type owns one Material hue and keeps it in both appearances — note is
+   blue, tip green, caution amber, danger red. Only the direction inverts: a
+   deep fill with light text in the dark appearance, the same hue read the
+   other way round in the light one. Picking each appearance's colours by eye
+   is what previously left tip teal on white but green on black, and caution
+   wearing red text on an orange fill — so a warning read as an error.
+   ══════════════════════════════════════════════════════════════════════ */
+:root .starlight-aside {
+	border: 0 !important;
+	border-inline-start: 0 !important;
+	border-radius: 4px;
+	box-shadow: none !important;
+	padding: 0.9375rem 1.5rem;
+	background: var(--aside-bg) !important;
+	background-image: none !important;
+}
+
+/* One colour for the whole panel — title, prose, list items, links and the
+   icon all share it, which is what DevSite does. */
+:root .starlight-aside .starlight-aside__title,
+:root .starlight-aside .starlight-aside__content,
+:root .starlight-aside .starlight-aside__content p,
+:root .starlight-aside .starlight-aside__content li,
+:root .starlight-aside .starlight-aside__content strong,
+:root .starlight-aside .starlight-aside__content a:not(:where(.not-content *)) {
+	color: var(--aside-fg) !important;
+}
+
+:root .starlight-aside .starlight-aside__content a:not(:where(.not-content *)) {
+	border-bottom-color: currentColor !important;
+	text-decoration: underline;
+	font-weight: 500;
+}
+
+:root .starlight-aside .starlight-aside__title {
+	font-family: var(--t-font-heading);
+	font-size: 1rem;
+	font-weight: 500;
+	letter-spacing: normal;
+	text-transform: none;
+	display: flex;
+	align-items: center;
+	gap: 0.5rem;
+	margin-bottom: 0.35rem;
+}
+
+/* DevSite labels a callout with an icon and the word, not a badge chip. */
+:root .starlight-aside .starlight-aside__title::before {
+	content: none !important;
+	display: none !important;
+}
+
+:root .starlight-aside .starlight-aside__icon {
+	color: var(--aside-fg) !important;
+	fill: var(--aside-fg) !important;
+	font-size: 1.15rem;
+	flex-shrink: 0;
+}
+
+:root .starlight-aside .starlight-aside__content,
+:root .starlight-aside .starlight-aside__content p {
+	font-size: 1rem;
+	line-height: 1.5;
+	letter-spacing: 0.25px;
+}
+
+/* Code chips inside a tinted panel. In the dark appearance a translucent
+   scrim reads correctly over every callout fill without needing a per-type
+   colour. The light appearance overrides this below — there, code is dark
+   everywhere on the page, and a callout should be no exception. */
+:root .starlight-aside code:not(:where(.not-content *)) {
+	background: rgba(var(--t-ink-rgb), 0.10) !important;
+	border-color: rgba(var(--t-ink-rgb), 0.18) !important;
+	color: var(--aside-fg) !important;
+}
+
+/* Light appearance: every piece of code on the page is a dark chip with light
+   text — prose, lists, tables, blockquotes, callouts and full code blocks
+   alike. Callouts were the one place still showing a pale chip tinted with
+   the callout's own hue, which broke that consistency. */
+:root[data-theme='light'] .starlight-aside code:not(:where(.not-content *)) {
+	background: var(--t-code-bg) !important;
+	border-color: var(--t-code-border) !important;
+	color: var(--t-code-text) !important;
+}
+
+/* Tables nested inside a callout stay flush with the panel. */
+:root .starlight-aside table:not(:where(.not-content *)) {
+	border: 1px solid rgba(var(--t-ink-rgb), 0.15);
+	box-shadow: none;
+}
+
+/* The palettes live on the theme root as tokens, not on the callout classes.
+   Declaring them per-class needs one selector per type per theme, and those
+   selectors all sit at the same specificity — so whichever theme happened to
+   be written last silently won for every callout. As tokens there is exactly
+   one pair of blocks and the normal cascade resolves it. */
+:root,
+[data-theme='dark'] {
+	/* One ramp per type, built the same way for all four: the hue's 900 at 45%
+	   over the dark surface for the fill, the hue's 200 for everything drawn on
+	   it. That one rule lands every callout between 7.2:1 and 7.5:1 — AAA, and
+	   even enough that none of the four reads louder than its neighbours. The
+	   near-white text used before (#FFF7E8 on caution, #F8ECF0 on danger) is
+	   why those two lost their hue while note and tip kept theirs. */
+	--aside-note-bg:    #1C355F;  --aside-note-fg:    #AECBFA;
+	--aside-tip-bg:     #174028;  --aside-tip-fg:     #A8DAB5;
+	--aside-caution-bg: #613D14;  --aside-caution-fg: #FDE293;
+	--aside-danger-bg:  #5C181A;  --aside-danger-fg:  #F6AEA9;
+
+	--t-table-head-bg:   #5F6368;
+	--t-table-head-text: #FFFFFF;
+	--t-table-cell-bg:   rgba(42, 43, 46, 0.95);
+	--t-quote-bg:        #2A2B2E;
+	/* Grid lines inside tables. A step stronger than --t-border, which is a
+	   chrome hairline meant to sit at the edge of a panel — inside a table it
+	   is too faint to separate cells. */
+	--t-rule:            #4A4D51;
+	--t-code-border:     #4A4D51;
+	/* Terminal titlebar / editor tab bar. These used to borrow
+	   --t-table-head-bg, which is a *table* token: it happens to sit sensibly
+	   on the dark code fill here, but in the light appearance it is #F1F3F4 —
+	   a near-white bar bolted to a near-black block. Code frames are dark in
+	   both appearances, so the chrome on them has to be too, and it needs its
+	   own token to say so. */
+	--t-code-titlebar:        #5F6368;
+	--t-code-titlebar-border: #3C4043;
+
+	/* Hero band. A shallow lift off the page rather than a colour of its own,
+	   so the band reads as a surface without fighting the flat design. */
+	--t-hero-band: linear-gradient(180deg, #1B1D21 0%, #151619 60%, #121212 100%);
+
+	/* Finale card: the accent carried into a surface, so the end of the story
+	   reads as a conclusion rather than another grey panel. */
+	--t-finale-bg: linear-gradient(180deg, #1D2B45 0%, #182234 100%);
+	--t-finale-border: #2E4675;
+
+	/* ShapeLegend chips. Light text on a dark tint here, inverted below. */
+	--legend-warn-bg:      rgba(253, 214, 99, 0.15);
+	--legend-warn-fg:      #FDD663;
+	--legend-warn-border:  rgba(253, 214, 99, 0.35);
+	--legend-alert-bg:     rgba(242, 139, 130, 0.15);
+	--legend-alert-fg:     #F28B82;
+	--legend-alert-border: rgba(242, 139, 130, 0.35);
+
+	/* A pass state, built like the two chips above so the three can sit in one
+	   row and read as a set. The accent can't do this job — it already means
+	   "current" and "interactive" throughout the theme, so borrowing it for
+	   "correct" would make every link look like a result. */
+	--t-ok-bg:     rgba(129, 201, 149, 0.15);
+	--t-ok-fg:     #81C995;
+	--t-ok-border: rgba(129, 201, 149, 0.35);
+}
+
+[data-theme='light'] {
+	/* The mirror of the dark set — the same four hues read the other way round:
+	   the 100 tint fills, the 900 writes on it (5.6:1–6.4:1, clear of AA).
+	   Fills are the 100 tint rather than the 50 DevSite uses because at 50 a
+	   callout sat 1.15:1 off the white page: technically tinted, but with none
+	   of the presence its dark counterpart has, which is what made the light
+	   appearance look unfinished beside it. At 100 the blue, green and red sit
+	   at 1.28–1.38, so a callout reads as a panel here too.
+	   Amber is the one fill off the Material ramp, and the reason is chroma
+	   rather than contrast. Yellow sits at its most colourful exactly where
+	   these fills live, so Yellow 100 measures 59 points of chroma against 42
+	   for Blue 100 and 43 for Red 100 — a yellow panel shouts next to its
+	   neighbours even while sitting *closer* to white than any of them, which
+	   is a loudness the other three don't have and a caution doesn't need.
+	   Yellow 100 with its blue channel lifted to C3 → D5 drains that back to
+	   41, in line with the set, and costs nothing: still 1.13 off the page and
+	   5.8:1 under text a step below Yellow 900. Deeper fills (Yellow 200) go
+	   the wrong way — they read as a highlighter stripe, not a panel. */
+	--aside-note-bg:    #D2E3FC;  --aside-note-fg:    #174EA6;
+	--aside-tip-bg:     #CEEAD6;  --aside-tip-fg:     #0D652D;
+	--aside-caution-bg: #FEEFD5;  --aside-caution-fg: #8F4C00;
+	--aside-danger-bg:  #FAD2CF;  --aside-danger-fg:  #A50E0E;
+
+	--t-table-head-bg:   #F1F3F4;
+	--t-table-head-text: #000000;
+	--t-table-cell-bg:   rgba(255, 255, 255, 0.95);
+	--t-quote-bg:        #F8F9FA;
+	/* Between --t-border and --t-border-strong, so a table reads as an outline
+	   with an interior grid rather than a uniform mesh. */
+	--t-rule:            #8F9498;
+	/* Same as the chip fill, so it reads as one solid dark pill on white. */
+	--t-code-border:     #202124;
+	/* Lifted off the #202124 code fill by the same step the dark appearance
+	   lifts its titlebar off #36373A, so a terminal reads the same way in both
+	   — a bar a shade above its own body, not a white strip on a black slab. */
+	--t-code-titlebar:        #4A4D51;
+	--t-code-titlebar-border: #5F6368;
+
+	--t-hero-band: linear-gradient(180deg, #F1F3F4 0%, #F8F9FA 60%, #FFFFFF 100%);
+
+	--t-finale-bg: linear-gradient(180deg, #E8F0FE 0%, #F6FAFF 100%);
+	/* Blue 300, not Blue 100. The 100 tint is barely a shade off its own fill,
+	   so the card had no edge at all where it met the white page. */
+	--t-finale-border: #8AB4F8;
+
+	/* Material 50 fills with 800/900 text — readable on white, unlike the
+	   mid-tone hue used before. The amber is a shade below Yellow 900:
+	   #B06000 scores 4.34 on this fill, just under AA for 12.8px text.
+	   Borders are 300-level (Yellow 600 — the yellow ramp is too light to
+	   register at 300), because these outline small legend swatches whose fill
+	   is a 50 tint: at 200 the border and the page were the same value and the
+	   swatch had no shape. */
+	--legend-warn-bg:      #FEF7E0;
+	--legend-warn-fg:      #9E5400;
+	--legend-warn-border:  #F9AB00;
+	--legend-alert-bg:     #FCE8E6;
+	--legend-alert-fg:     #C5221F;
+	--legend-alert-border: #F28B82;
+
+	/* Green 50 fill with Green 800 text — 5.9 on this fill, clear of AA. */
+	--t-ok-bg:     #E6F4EA;
+	--t-ok-fg:     #137333;
+	--t-ok-border: #81C995;
+}
+
+.starlight-aside--note    { --aside-bg: var(--aside-note-bg);    --aside-fg: var(--aside-note-fg); }
+.starlight-aside--tip     { --aside-bg: var(--aside-tip-bg);     --aside-fg: var(--aside-tip-fg); }
+.starlight-aside--caution { --aside-bg: var(--aside-caution-bg); --aside-fg: var(--aside-caution-fg); }
+.starlight-aside--danger  { --aside-bg: var(--aside-danger-bg);  --aside-fg: var(--aside-danger-fg); }
+
+/* ── Search ───────────────────────────────────────────────────────────── */
+:root site-search button[data-open-modal] {
+	background: var(--t-raise) !important;
+	border: 1px solid var(--t-border) !important;
+	border-radius: 8px !important;
+	box-shadow: none !important;
+	color: var(--t-text-muted) !important;
+}
+:root site-search button[data-open-modal]:hover {
+	background: rgba(var(--t-accent-rgb), 0.12) !important;
+	border-color: var(--t-border-strong) !important;
+}
+:root dialog[aria-label*='earch'] .dialog-frame {
+	background: rgba(var(--t-body-rgb), 1) !important;
+	border: 1px solid var(--t-border) !important;
+	border-radius: 8px !important;
+	box-shadow: 0 4px 16px rgba(0, 0, 0, 0.28) !important;
+}
+
+/* ── Scroll-to-top, hamburger, scrollbars ─────────────────────────────── */
+:root #scroll-to-top,
+:root starlight-menu-button button {
+	background-color: rgba(var(--t-body-rgb), 1) !important;
+	color: var(--t-text) !important;
+	border: 1px solid var(--t-border) !important;
+	box-shadow: 0 1px 3px rgba(0, 0, 0, 0.22) !important;
+}
+:root #scroll-to-top:hover {
+	background-color: var(--t-raise) !important;
+}
+
+@media (max-width: 50rem) {
+	/* The scroll-to-top button is fixed at z-index 9999, while the mobile nav
+	   panel sits at z-index 5 — so opening the menu left the arrow pinned on
+	   top of it, floating over the navigation. Hide it while the menu is
+	   expanded; there is nothing to scroll back to behind the panel anyway.
+
+	   Scoped to the mobile breakpoint on purpose: `aria-expanded` persists on
+	   the menu button after a resize, so an unscoped rule would keep the
+	   button hidden on desktop for anyone who had opened the menu narrow. */
+	:root:has(starlight-menu-button[aria-expanded='true']) #scroll-to-top {
+		opacity: 0 !important;
+		pointer-events: none !important;
+	}
+
+	/* Same class of problem, and more damaging: the "On this page" bar is
+	   fixed at z-index 10000 spanning y55–104, while the nav panel starts at
+	   y56 — so opening the menu put that bar straight over the first entry in
+	   the sidebar, hiding it completely. (It reads as a half-clipped
+	   "Overview" at the top of the list.)
+
+	   Hiding it while the menu is open is the right fix rather than nudging
+	   the panel down: an on-page heading list is meaningless when the panel
+	   is covering the page it belongs to, and shifting the panel would just
+	   open a strip of article showing between the header and the nav. */
+	:root:has(starlight-menu-button[aria-expanded='true']) mobile-starlight-toc {
+		display: none !important;
+	}
+
+	/* Tuck it further into the corner on a phone: at 2rem inset a 44px circle
+	   sits well inside the text column and covers content as you read. */
+	:root #scroll-to-top {
+		inline-size: 2.4rem;
+		block-size: 2.4rem;
+		inset-block-end: 1rem;
+		inset-inline-end: 1rem;
+	}
+}
+
+:root ::-webkit-scrollbar-thumb {
+	background: var(--t-border-strong);
+}
+:root ::-webkit-scrollbar-thumb:hover {
+	background: var(--t-text-faint);
+}
+
+/* ══════════════════════════════════════════════════════════════════════
+   Bespoke components (src/components/*.astro)
+   Astro scopes those as `.class[data-astro-cid-…]` — specificity (0,2,0).
+   `:root[data-theme] .class` is (0,3,0) so these win outright.
+   ══════════════════════════════════════════════════════════════════════ */
+/* Genuine cards only. `.closing-section` and `.shape-legend` used to be in
+   this list and should never have been: the first is a centred flex column
+   holding an image and two paragraphs, the second a row of chips. Neither is
+   a panel, so wrapping them in a surface put a lighter box around content
+   that already had its own — most visibly a grey slab behind the closing
+   illustration, which reads as a muddy second background. */
+:root .infocard,
+:root .timeline-card,
+:root .robot-card,
+:root .challenge-item {
+	background: rgba(var(--t-surface-2-rgb), 1);
+	border: 1px solid var(--t-border);
+	border-radius: 8px;
+	box-shadow: none;
+	color: var(--t-text);
+}
+
+:root .closing-section,
+:root .shape-legend {
+	background: none;
+	border: 0;
+	box-shadow: none;
+}
+
+/* The highlight variant differs from its siblings only by a gradient fill,
+   centred text and a glow — all three of which fight the flat design and make
+   one card in the run look like a different component. It matches the rest. */
+:root .timeline-card.highlight-card {
+	background: rgba(var(--t-surface-2-rgb), 1);
+	border-color: var(--t-border);
+	box-shadow: none;
+	text-align: left;
+}
+
+:root .timeline-card:hover,
+:root .robot-card:hover,
+:root .challenge-item:hover {
+	background: var(--t-raise);
+	border-color: var(--t-border-strong);
+	box-shadow: none;
+}
+
+:root .timeline-card h3,
+:root .robot-card h4,
+:root .infocard__title {
+	color: var(--t-text-strong);
+	font-family: var(--t-font-heading);
+}
+
+/* Pills. Both of these are inline-block with their own padding, so a fill and
+   a full radius read as a badge.
+
+   `box-shadow: none` matters: StoryBadge sets a shadow using --t-line-rgb,
+   and in the dark theme those channels are *light* (232,234,237) so the
+   capsule picked up a white halo bleeding out of its edges. The Android
+   design is flat — the fill alone defines the shape. */
+:root .story-badge,
+:root .challenges-badge {
+	background: var(--t-active-bg);
+	color: var(--t-accent-strong);
+	border: 0;
+	border-radius: 999px;
+	font-weight: 500;
+	box-shadow: none;
+}
+
+/* NOT a pill. `.card-tag` is a block <div> with no padding — an eyebrow label
+   above the card title. Grouping it with the badges above gave it a fill and
+   a 999px radius, which on a full-width block with zero padding painted a
+   solid bar across the top of every timeline card. It stays plain text. */
+:root .card-tag {
+	background: none;
+	border: 0;
+	border-radius: 0;
+	padding: 0;
+	color: var(--t-link);
+	font-weight: 700;
+	letter-spacing: 0.1em;
+	text-transform: uppercase;
+}
+
+:root .timeline-icon {
+	background: rgba(var(--t-surface-2-rgb), 1);
+	border: 1px solid var(--t-border);
+	color: var(--t-link);
+	box-shadow: none;
+}
+
+/* Neither of these is a badge, and giving them a fill was the same mistake as
+   `.card-tag`: `.challenge-num` is a bare numeral sitting beside the
+   challenge text, and `.robot-avatar` is a large emoji. A background painted
+   a blue block behind each. They stay unfilled.
+
+   The numeral is the page's strong text colour — white in the dark theme —
+   rather than a tint or a grey, so it reads as a real figure. */
+:root .challenge-num {
+	background: none;
+	border: 0;
+	border-radius: 0;
+	color: var(--t-text-strong);
+	font-variant-numeric: tabular-nums;
+}
+
+:root .challenge-item:hover .challenge-num {
+	color: var(--t-text-strong);
+}
+
+:root .robot-avatar {
+	background: none;
+	border: 0;
+	border-radius: 0;
+	color: inherit;
+}
+
+:root .story-timeline::before,
+:root .timeline-connector {
+	background: var(--t-border);
+}
+
+:root .infocard__table th {
+	background: var(--t-table-head-bg);
+	color: var(--t-table-head-text);
+	border-bottom: 0;
+}
+:root .infocard__table td {
+	background: var(--t-table-cell-bg);
+	color: var(--t-text);
+	border-bottom: 1px solid var(--t-border);
+}
+:root .infocard__table tbody tr:nth-child(even) td {
+	background: var(--t-table-cell-bg);
+}
+:root .infocard__table tbody tr:hover td {
+	background: rgba(var(--t-accent-rgb), 0.08);
+}
+
+:root .story-subtitle,
+:root .closing-cheer,
+:root .challenge-text,
+:root .hero .tagline,
+:root .copy {
+	color: var(--t-text);
+}
+
+/* ══════════════════════════════════════════════════════════════════════
+   Homepage
+   ══════════════════════════════════════════════════════════════════════ */
+
+/* Starlight's default hero padding is `clamp(2.5rem, 1rem + 10vmin, 10rem)`,
+   which resolves to ~121px top and bottom on a desktop window and leaves a
+   large dead band between the title and the first section. This file is
+   unlayered, so it wins over the `@layer starlight.core` default. */
+/* ── Hero: full-bleed editorial band ───────────────────────────────────
+   The hero breaks out of the content column and runs edge to edge, with the
+   illustration bleeding off the trailing side. `margin-inline: calc(50% -
+   50vw)` is what escapes the container; the asymmetric `padding-inline` then
+   re-insets the copy so it still lines up with the rest of the page instead
+   of sliding to the window edge on a wide screen.
+
+   (`html, body { overflow-x: hidden }` in custom.css absorbs the scrollbar
+   width that 50vw does not account for.) */
+
+/* The band has to start at the header. Starlight's content panel pads 1.5rem
+   on every side, and on the splash page that top pad left a strip of page
+   background above the band. The band opens on a lighter grey than the page,
+   so in dark mode the strip read as a black bar sitting between the header
+   rule and the hero. */
+:root .content-panel:has(> .sl-container > .hero) {
+	padding-top: 0;
+}
+
+:root .hero {
+	margin-inline: calc(50% - 50vw);
+	padding-inline: max(1.25rem, calc(50vw - 34rem));
+	padding-block: clamp(2rem, calc(1rem + 4vmin), 3.5rem);
+	background: var(--t-hero-band);
+	border-bottom: 1px solid var(--t-border);
+	position: relative;
+	overflow: hidden;
+	text-align: left;
+}
+
+@media (min-width: 50rem) {
+	:root .hero {
+		grid-template-columns: minmax(0, 1fr) minmax(0, 24rem);
+		align-items: center;
+		gap: 2.5rem;
+	}
+
+	:root .hero > .stack {
+		order: 1;
+		align-items: flex-start;
+		width: 100%;
+	}
+
+	:root .hero .copy {
+		align-items: flex-start;
+		text-align: left;
+	}
+
+	:root .hero .actions {
+		justify-content: flex-start;
+	}
+
+	/* Bleeds off the trailing edge rather than sitting neatly inside the
+	   band — that overhang is what makes the hero read as a banner. */
+	:root .hero > img,
+	:root .hero > .hero-html {
+		order: 2;
+		width: min(120%, 30rem);
+		max-width: none;
+		justify-self: end;
+		margin-inline-end: clamp(-6rem, -4vw, -1rem);
+	}
+}
+
+@media (max-width: 50rem) {
+	:root .hero {
+		text-align: center;
+	}
+	:root .hero .copy,
+	:root .hero > .stack {
+		align-items: center;
+		text-align: center;
+	}
+	:root .hero .actions {
+		justify-content: center;
+	}
+}
+
+/* ── Story section: alternating beats on a filling rail ────────────────
+   Two beats to the left, two to the right, and the summary centred at the
+   foot, joined by a line that fills as the section scrolls past. The fill is
+   what carries the sense of progress the earlier layouts lacked — a grid, a
+   carousel and a static rail all showed the beats without showing that they
+   run in order.
+
+   Geometry is driven by two variables so the dots, the stubs and the card
+   widths cannot drift apart. */
+:root .story-timeline {
+	--rail-gap: 3rem;   /* card edge to rail */
+	--dot: 1.125rem;
+	--dot-top: 1.125rem; /* card top to marker top */
+	--beat-gap: 2.5rem;  /* gap below each beat */
+
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	position: relative;
+	gap: 0;
+	margin-bottom: 3rem;
+	overflow: visible;
+}
+
+/* Track and fill. The track spans the whole run; the fill is driven by
+   --story-progress, set from the scroll handler in StoryTimeline.astro. */
+:root .story-rail {
+	position: absolute;
+	/* Bounded by the run itself, not by the container's box: it begins on the
+	   centre of the first beat's marker and ends on the bottom edge of the
+	   finale card — which the opaque card covers, so the line reads as
+	   terminating at the finale's node. Anchoring it to the container instead
+	   left a stub of line above the first card and below the last one. */
+	inset-block-start: calc(var(--dot-top) + var(--dot) / 2);
+	inset-block-end: var(--beat-gap);
+	inset-inline-start: 50%;
+	translate: -50% 0;
+	inline-size: 2px;
+	border-radius: 2px;
+	pointer-events: none;
+	z-index: 0;
+	/* Track and fill in one element, as a hard-stopped gradient.
+	   The obvious approaches both failed here: a percentage `block-size` on a
+	   child resolved to 0, and so did stretching that child with `inset: 0` —
+	   its box stayed 0px tall regardless. A gradient stop resolves against
+	   this element's own box, so there is no child and no percentage height
+	   to depend on.
+
+	   The stop is a ready-made percentage written by the script, not
+	   `calc(var(--progress) * 100%)`: that multiplication did not evaluate
+	   reliably — the stop pinned to ~100% whatever the variable held. */
+	background: linear-gradient(
+		to bottom,
+		var(--t-accent) 0,
+		var(--t-accent) var(--story-fill, 0%),
+		var(--t-border) var(--story-fill, 0%),
+		var(--t-border) 100%
+	);
+	transition: background 0.12s linear;
+}
+
+@media (prefers-reduced-motion: reduce) {
+	:root .story-rail {
+		transition: none;
+	}
+}
+
+/* Filled by scaling, not by height.
+   `block-size: calc(var(--story-progress) * 100%)` was the obvious way to
+   write this and it does not work: a percentage height here resolves to 0
+   even though the rail's own height is definite (percentage *width* on the
+   same element resolves fine). Stretching the fill to the rail with `inset`
+   and scaling it on the block axis avoids percentages altogether. */
+/* Superseded by the gradient above; the element stays in the markup so the
+   component keeps working if this file is ever loaded on its own. */
+:root .story-rail-fill {
+	display: none;
+}
+
+:root .story-timeline .timeline-item {
+	position: relative;
+	z-index: 1;
+	inline-size: calc(50% - var(--rail-gap));
+	max-inline-size: 26rem;
+	height: auto;
+	margin: 0 0 var(--beat-gap);
+	padding: 0;
+	text-align: left;
+	flex: none;
+}
+
+:root .story-timeline .timeline-item.left {
+	align-self: flex-start;
+}
+
+/* Pulled up so the two columns interleave instead of each beat occupying a
+   full row of its own — that stacking is what left the diagonal gaps. */
+:root .story-timeline .timeline-item.right {
+	align-self: flex-end;
+	margin-block-start: -3.5rem;
+}
+
+/* The marker, centred on the rail. */
+:root .story-timeline .timeline-item::before {
+	content: '';
+	position: absolute;
+	inset-block-start: var(--dot-top);
+	inline-size: var(--dot);
+	block-size: var(--dot);
+	border-radius: 50%;
+	/* Opaque, so the rail passes behind rather than through it. */
+	background: rgba(var(--t-body-rgb), 1);
+	border: 2px solid var(--t-border);
+	z-index: 2;
+	transition: border-color 0.25s ease, background 0.25s ease, scale 0.25s ease;
+}
+
+/* The stub joining card to rail. */
+:root .story-timeline .timeline-item::after {
+	content: '';
+	position: absolute;
+	inset-block-start: calc(var(--dot-top) + var(--dot) / 2 - 1px);
+	inline-size: var(--rail-gap);
+	block-size: 2px;
+	background: var(--t-border);
+	z-index: 1;
+	transition: background 0.25s ease;
+}
+
+:root .story-timeline .timeline-item.left::before {
+	inset-inline-end: calc(-1 * var(--rail-gap) - var(--dot) / 2);
+}
+:root .story-timeline .timeline-item.left::after {
+	inset-inline-end: calc(-1 * var(--rail-gap));
+}
+
+:root .story-timeline .timeline-item.right::before {
+	inset-inline-start: calc(-1 * var(--rail-gap) - var(--dot) / 2);
+}
+:root .story-timeline .timeline-item.right::after {
+	inset-inline-start: calc(-1 * var(--rail-gap));
+}
+
+/* Lit as the fill reaches them — the class is toggled from the scroll
+   handler against the same measurement that drives the fill height, so dot
+   and fill cannot fall out of step. */
+:root .story-timeline .timeline-item.reached::before {
+	border-color: var(--t-accent);
+	background: var(--t-accent);
+	scale: 1.15;
+}
+:root .story-timeline .timeline-item.reached::after {
+	background: var(--t-accent);
+}
+
+/* The summary closes the run: centred under the rail, wider than a beat, and
+   with no marker or stub of its own. */
+/* ── The finale ────────────────────────────────────────────────────────
+   The last beat is where the rail arrives, so it is staged as a destination
+   rather than a fifth card: the line runs down into a terminal node sitting
+   on the card's top edge, and the card itself is tinted in the accent so it
+   reads as the conclusion instead of one more grey box in the run.
+
+   The card is opaque and sits above the rail (z-index 1 vs 0), which is what
+   makes the line appear to stop at the node rather than run on behind it. */
+:root .story-timeline .timeline-item:has(.highlight-card) {
+	align-self: center;
+	inline-size: min(100%, 36rem);
+	max-inline-size: none;
+	margin-block-start: 3.25rem;
+	/* Clearance for the node, which straddles the card's top edge. */
+	padding-block-start: 1.25rem;
+	text-align: center;
+}
+
+/* Terminal node. Larger than a beat marker and filled, with a ring in the
+   page colour so it punches a hole in the rail behind it. */
+:root .story-timeline .timeline-item:has(.highlight-card)::before {
+	content: '';
+	inset-block-start: 0;
+	inset-inline-start: 50%;
+	inset-inline-end: auto;
+	translate: -50% 0;
+	inline-size: 1.6rem;
+	block-size: 1.6rem;
+	border-radius: 50%;
+	background: var(--t-accent);
+	border: 4px solid rgba(var(--t-body-rgb), 1);
+	box-shadow: 0 0 0 2px var(--t-accent);
+	scale: 1;
+	z-index: 3;
+}
+
+/* No stub — the node sits on the rail itself, not beside a card. */
+:root .story-timeline .timeline-item:has(.highlight-card)::after {
+	content: none;
+}
+
+:root .story-timeline .timeline-item:has(.highlight-card) .timeline-card {
+	background: var(--t-finale-bg);
+	border: 1px solid var(--t-finale-border);
+	border-radius: 16px;
+	padding: 2.25rem 2rem 2rem;
+	text-align: center;
+}
+
+:root .story-timeline .timeline-item:has(.highlight-card) .timeline-card h3 {
+	font-family: var(--t-font-heading);
+	font-size: 1.5rem;
+	line-height: 1.3;
+	margin-block: 0.35rem 0.75rem;
+}
+
+/* The eyebrow becomes a centred label flanked by rules — a small piece of
+   punctuation that says "this is the end of the sequence". */
+:root .story-timeline .timeline-item:has(.highlight-card) .card-tag {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	gap: 0.75rem;
+	/* The strong accent, not --t-accent: on the finale's own tinted surface
+	   #1A73E8 scores 3.93, under AA for 13.6px text. #174EA6 clears it, and
+	   in the dark theme the equivalent is lighter, so both improve. */
+	color: var(--t-accent-strong);
+}
+
+:root .story-timeline .timeline-item:has(.highlight-card) .card-tag::before,
+:root .story-timeline .timeline-item:has(.highlight-card) .card-tag::after {
+	content: '';
+	inline-size: 1.75rem;
+	block-size: 1px;
+	background: currentColor;
+	opacity: 0.45;
+}
+
+/* ── Single column below the breakpoint ────────────────────────────────
+   Two columns of cards will not fit a phone, so the rail moves to the left
+   edge and every beat hangs off it in one run. */
+@media (max-width: 50rem) {
+	:root .story-timeline {
+		--rail-gap: 1.5rem;
+		--beat-gap: 2rem;
+		--rail-x: 0.9rem;   /* container edge to rail */
+		align-items: stretch;
+		padding-inline-start: 2.75rem;
+	}
+
+	:root .story-rail {
+		inset-inline-start: var(--rail-x);
+		translate: none;
+	}
+
+	:root .story-timeline .timeline-item,
+	:root .story-timeline .timeline-item.left,
+	:root .story-timeline .timeline-item.right {
+		align-self: stretch;
+		inline-size: auto;
+		max-inline-size: none;
+		margin-block: 0 var(--beat-gap);
+	}
+
+	:root .story-timeline .timeline-item.left::before,
+	:root .story-timeline .timeline-item.right::before {
+		inset-inline-start: calc(-1 * var(--rail-gap) - var(--dot) / 2 - 0.35rem);
+		inset-inline-end: auto;
+	}
+
+	:root .story-timeline .timeline-item.left::after,
+	:root .story-timeline .timeline-item.right::after {
+		inset-inline-start: calc(-1 * var(--rail-gap) - 0.35rem);
+		inset-inline-end: auto;
+		inline-size: calc(var(--rail-gap) + 0.35rem);
+	}
+
+	:root .story-timeline .timeline-item:has(.highlight-card) {
+		align-self: stretch;
+		inline-size: auto;
+		margin-inline-start: -2.75rem;
+		text-align: left;
+	}
+
+	/* The finale runs the full width here, so its node still belongs on the
+	   rail — but the item starts at the container's edge, not beside it, so
+	   the single-column offsets above would carry the node off-screen. */
+	:root .story-timeline .timeline-item:has(.highlight-card)::before {
+		inset-inline-start: calc(var(--rail-x) + 1px);
+		inset-inline-end: auto;
+	}
+}
+
+
+/* ── Buttons — filled primary, outlined secondary, 4px radius ──────────── */
+:root .sl-link-button.primary {
+	background: var(--t-accent);
+	border: 1px solid var(--t-accent);
+	color: var(--t-on-accent);
+	border-radius: 4px;
+	font-weight: 500;
+	box-shadow: none;
+}
+:root .sl-link-button.primary:hover {
+	background: var(--t-accent-strong);
+	border-color: var(--t-accent-strong);
+	color: var(--t-on-accent);
+}
+:root .sl-link-button.secondary,
+:root .sl-link-button.minimal {
+	background: transparent;
+	border: 1px solid var(--t-border);
+	color: var(--t-link);
+	border-radius: 4px;
+	font-weight: 500;
+}
+:root .sl-link-button.secondary:hover,
+:root .sl-link-button.minimal:hover {
+	background: rgba(var(--t-accent-rgb), 0.12);
+	border-color: var(--t-accent);
+	color: var(--t-link);
+}
+
+/* Video embeds: hairline frame, no glow. */
+:root .video-embed,
+:root .video-mini-stage {
+	border-color: var(--t-border);
+	box-shadow: none;
+}
