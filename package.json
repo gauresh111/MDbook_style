@@ -41,6 +41,7 @@
     "internal",
     "custom.css",
     "android.css",
+    "components",
     "README.md",
     "LICENSE.md"
   ],
